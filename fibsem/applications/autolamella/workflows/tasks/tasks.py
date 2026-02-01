@@ -761,16 +761,20 @@ class MillUndercutTask(AutoLamellaTask):
                                     validate=self.validate, 
                                     msg=lamella.status_info)
 
+            # only want to run specific stage
+            current_milling_config = deepcopy(milling_task_config)
+            current_milling_config.stages = [deepcopy(milling_task_config.stages[i])]
+
             # set pattern position
-            offset = milling_task_config.stages[0].pattern.height / 2
+            offset = current_milling_config.stages[0].pattern.height / 2
             point = deepcopy(det.features[0].feature_m)
             point.y += offset if np.isclose(scan_rotation, 0) else -offset
-            milling_task_config.stages[0].pattern.point = point
+            current_milling_config.stages[0].pattern.point = point
 
             # mill undercut
             self.log_status_message(f"MILL_UNDERCUT_{nid}")
             msg=f"Press Run Milling to mill the Undercut for {self.lamella.name}. Press Continue when done."
-            milling_task_config = self.update_milling_config_ui(milling_task_config, msg=msg)
+            current_milling_config = self.update_milling_config_ui(current_milling_config, msg=msg)
 
             # log the task configuration
             # post_milled_undercut_stages.extend(stages)
