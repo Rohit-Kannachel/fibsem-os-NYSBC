@@ -844,6 +844,32 @@ class MillRoughTask(AutoLamellaTask):
             milling_task_config = self.update_milling_config_ui(milling_task_config, msg=msg)
             self.config.milling[STRESS_RELIEF_KEY] = deepcopy(milling_task_config)
 
+
+        ## ML Based Alignment instead of Cross-Correlation
+        ## Reason: depending on alignment area chosen 
+        ## Cross-Correlation does not take into effect local charging effects
+        ## TODO: Make this optional/settable in config
+
+        checkpoint = "autolamella-waffle-20240107.pt"
+
+        # do detection 
+        features = [LamellaCentre()]
+        det = update_detection_ui(microscope=self.microscope,
+                                    image_settings=self.image_settings,
+                                    checkpoint=checkpoint,
+                                    features=features,
+                                    parent_ui=self.parent_ui,
+                                    validate=self.validate,
+                                    msg=self.lamella.status_info)
+
+        # align vertical
+        ## Maybe make this move pattern instead of beamshift/stage shift?
+        self.microscope.vertical_move(
+            dx=det.features[0].feature_m.x,
+            dy=det.features[0].feature_m.y,
+        )
+
+
         # mill rough trench
         self.log_status_message("MILL_LAMELLA", "Milling Rough Lamella...")
         milling_task_config = self.config.milling[MILL_ROUGH_KEY]
@@ -905,6 +931,31 @@ class MillPolishingTask(AutoLamellaTask):
 
         # reference images
         self._acquire_reference_image(image_settings, field_of_view=self.config.milling[MILL_POLISHING_KEY].field_of_view)
+
+        ## ML Based Alignment instead of Cross-Correlation
+        ## Reason: depending on alignment area chosen 
+        ## Cross-Correlation does not take into effect local charging effects
+        ## TODO: Make this optional/settable in config
+
+        checkpoint = "autolamella-waffle-20240107.pt"
+
+        # do detection 
+        features = [LamellaCentre()]
+        det = update_detection_ui(microscope=self.microscope,
+                                    image_settings=self.image_settings,
+                                    checkpoint=checkpoint,
+                                    features=features,
+                                    parent_ui=self.parent_ui,
+                                    validate=self.validate,
+                                    msg=self.lamella.status_info)
+
+        # align vertical
+        ## Maybe make this move pattern instead of beamshift/stage shift?
+        self.microscope.vertical_move(
+            dx=det.features[0].feature_m.x,
+            dy=det.features[0].feature_m.y,
+        )
+
 
         # mill polishing 
         self.log_status_message("MILL_LAMELLA", "Milling Polishing Lamella...")
