@@ -796,8 +796,7 @@ def align_feature_coincident(
                               checkpoint=checkpoint,
                               parent_ui=parent_ui, 
                               validate=validate, 
-                              msg=lamella.info, 
-                              position=lamella.state.microscope_state.stage_position)
+                              msg=lamella.info)
 
     microscope.stable_move(
         dx=det.features[0].feature_m.x,
@@ -815,8 +814,7 @@ def align_feature_coincident(
                               checkpoint=checkpoint,
                               parent_ui=parent_ui, 
                               validate=validate, 
-                              msg=lamella.info, 
-                              position=lamella.state.microscope_state.stage_position)
+                              msg=lamella.info)
     
     # align vertical
     microscope.vertical_move(
