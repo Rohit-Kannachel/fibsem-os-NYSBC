@@ -276,7 +276,7 @@ def main(config: dict):
     ################################## TRAINING ##################################
 
     # train model
-    model = train_model(
+    model,results = train_model(
         model,
         device,
         optimizer,
@@ -284,6 +284,17 @@ def main(config: dict):
         val_data_loader,
         config=config,
     )
+
+    # write results to txt file
+
+    results_file = os.path.join(config["save_path"], "training_results.txt")
+    with open(results_file, "w") as f:
+        f.write("Epoch,Train Loss,Val Loss\n")
+        for epoch in range(config["epochs"]):
+            f.write(f"{epoch+1},{results['train_losses'][epoch]},{results['val_losses'][epoch]}\n")
+        f.write("\n")
+        f.write(f"Min Train Loss at epoch {results['train_losses'].index(min(results['train_losses'])) + 1}\n")
+        f.write(f"Min Val Loss at epoch {results['val_losses'].index(min(results['val_losses'])) + 1}\n")
 
 if __name__ == "__main__":
     # command line arguments
