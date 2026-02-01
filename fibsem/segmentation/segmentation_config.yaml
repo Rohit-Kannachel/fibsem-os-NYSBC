@@ -40,10 +40,12 @@ CLASS_COLORS:
 CLASS_LABELS: # autolamella
   0: "background"
   1: "lamella"
-  2: "manipulator"
-  3: "landing_post"
-  4: "copper_adaptor"
-  5: "volume_block"
+  2: "trench"
+  3: "manipulator"
+  4: "landing_post"
+  5: "copper_adaptor"
+  6: "volume_block"
+
 
 
 # CLASS_LABELS: # spacetomo
