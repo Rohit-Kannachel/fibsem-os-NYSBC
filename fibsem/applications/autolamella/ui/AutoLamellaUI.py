@@ -1683,6 +1683,12 @@ class AutoLamellaUI(AutoLamellaMainUI.Ui_MainWindow, QMainWindow):
             self.milling_task_config_widget.clear()
             self.milling_task_config_widget.setEnabled(False)
             self.tabWidget.setCurrentWidget(self.milling_task_config_widget)
+        
+        screenshot = info.get("screenshot", None)
+        if screenshot is not None:
+            savepath = info.get("savepath", None)
+            if savepath is not None:
+                self.viewer.export_figure(path=savepath,flash=False)
 
         # no specific interaction, just update the ui
         if (detections is None and

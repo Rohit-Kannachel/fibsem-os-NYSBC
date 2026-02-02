@@ -435,6 +435,8 @@ class AutoLamellaTask(ABC):
             self.update_status_ui(f"Milling {milling_config.name}...")
             self.parent_ui.milling_task_config_widget.milling_widget.start_milling_signal.emit()
 
+            self._take_screenshot(pre=True)
+
             # wait for milling to start
             wait_for_milling_timeout = 5  # seconds
             start_wait = time.time()
@@ -458,6 +460,9 @@ class AutoLamellaTask(ABC):
             response = False
             if self.validate:
                 response = ask_user(self.parent_ui, msg=msg, pos=pos, neg=neg, mill=milling_enabled)
+
+        # take screenshot with pattern overlay post milling
+        self._take_screenshot()
 
         # get milling config from milling widget
         milling_config = deepcopy(self.parent_ui.milling_task_config_widget.get_config())
@@ -492,6 +497,26 @@ class AutoLamellaTask(ABC):
         info = {
             "msg": "Clearing Milling Config",
             "clear_milling_config": True,
+        }
+
+        self.parent_ui.WAITING_FOR_UI_UPDATE = True
+        self.parent_ui.workflow_update_signal.emit(info) # type: ignore
+        while self.parent_ui.WAITING_FOR_UI_UPDATE:
+            time.sleep(0.5)
+
+    def _take_screenshot(self, pre=False):
+
+        """Take a screenshot with pattern overlay. Pre = True takes a screenshot before milling, False after milling."""
+        if self.parent_ui is None:
+            return
+
+        filename = f"Pattern_Overlay_{self.task_name}_Post.png" if not pre else f"Pattern_Overlay_{self.task_name}_Pre.png"
+        full_path = os.path.join(self.lamella.path, filename)
+
+        info = {
+            "msg": "Take Screenshot With Pattern Overlay",
+            "screenshot": True,
+            "savepath" : full_path
         }
 
         self.parent_ui.WAITING_FOR_UI_UPDATE = True
