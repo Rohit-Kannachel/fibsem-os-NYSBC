@@ -726,7 +726,7 @@ class MillUndercutTask(AutoLamellaTask):
         image_settings = self.config.imaging
         image_settings.path = self.lamella.path
 
-        checkpoint = "autolamella-waffle-20240107.pt" # if self.lamella.protocol.options.checkpoint is None else self.lamella.protocol.options.checkpoint
+        checkpoint = r"C:\Users\Admin\Documents\fibsem_data\ml_models\lamella_and_trench\model-20260127-37.pt" # if self.lamella.protocol.options.checkpoint is None else self.lamella.protocol.options.checkpoint
 
         # move to sem orientation
         self.log_status_message("MOVE_TO_UNDERCUT", "Moving to Undercut Position...")
@@ -875,7 +875,7 @@ class MillRoughTask(AutoLamellaTask):
         ## Cross-Correlation does not take into effect local charging effects
         ## TODO: Make this optional/settable in config
 
-        checkpoint = "autolamella-waffle-20240107.pt"
+        checkpoint = r"C:\Users\Admin\Documents\fibsem_data\ml_models\lamella_and_trench\model-20260127-37.pt"
 
         # do detection 
         features = [LamellaCentre()]
@@ -962,12 +962,12 @@ class MillPolishingTask(AutoLamellaTask):
         ## Cross-Correlation does not take into effect local charging effects
         ## TODO: Make this optional/settable in config
 
-        checkpoint = "autolamella-waffle-20240107.pt"
+        checkpoint = r"C:\Users\Admin\Documents\fibsem_data\ml_models\lamella_and_trench\model-20260127-37.pt"
 
         # do detection 
         features = [LamellaCentre()]
         det = update_detection_ui(microscope=self.microscope,
-                                    image_settings=self.image_settings,
+                                    image_settings=image_settings,
                                     checkpoint=checkpoint,
                                     features=features,
                                     parent_ui=self.parent_ui,
@@ -1119,7 +1119,8 @@ class SetupLamellaTask(AutoLamellaTask):
         image_settings.path = self.lamella.path
 
         # move to lamella milling position
-        self._move_to_milling_pose()
+        ### Figure out what this is and why it does this!
+        # self._move_to_milling_pose()
 
         self.log_status_message("SELECT_POSITION", "Selecting Position...")
         milling_angle = self.config.milling_angle
@@ -1181,7 +1182,15 @@ class SetupLamellaTask(AutoLamellaTask):
 
             alignment_hfw = milling_task_config.field_of_view
             # get alignment area based on fiducial bounding box
-            self.lamella.alignment_area = get_pattern_reduced_area(pattern=milling_task_config.stages[0].pattern,
+
+            # get correct pattern for alignment area
+            stages = milling_task_config.stages
+            for stage in stages:
+                if "Fiducial" in stage.name:
+                    pattern_to_use = stage.pattern
+                    break
+
+            self.lamella.alignment_area = get_pattern_reduced_area(pattern=pattern_to_use,
                                                             image=FibsemImage.generate_blank_image(hfw=alignment_hfw),
                                                             expand_percent=int(self.config.alignment_expansion))
         else:
