@@ -242,6 +242,10 @@ class FibsemMillingTask:
             if not self.config.acquisition.enabled and not self.config.acquisition.acquire_fib:
                 self.microscope.autocontrast(beam_type=self.config.channel)
                 fib_image = self.microscope.acquire_image(image_settings=None, beam_type=self.config.channel)
+                # take eb image too
+                self.microscope.autocontrast(beam_type=BeamType.ELECTRON)
+                sem_image = self.microscope.acquire_image(image_settings=None, beam_type=BeamType.ELECTRON)
+                self.microscope.sem_acquisition_signal.emit(sem_image)
                 self.microscope.fib_acquisition_signal.emit(fib_image)
         except Exception as e:
             logging.error(f"Error acquiring image after milling task: {e}")
