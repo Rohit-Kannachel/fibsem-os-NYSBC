@@ -1135,6 +1135,32 @@ class SetupLamellaTask(AutoLamellaTask):
             if ret:
                 self.microscope.move_to_milling_angle(milling_angle=np.radians(milling_angle))
 
+        checkpoint = r"C:\Users\Admin\Documents\fibsem_data\ml_models\lamella_and_trench\model-20260127-37.pt"
+
+        # do detection 
+
+        # Take Ion Image for detection, change beamtype temporarily to ION then change back
+        orig_beam_type = image_settings.beam_type
+        image_settings.beam_type = BeamType.ION
+
+        features = [LamellaCentre()]
+        det = update_detection_ui(microscope=self.microscope,
+                                    image_settings=image_settings,
+                                    checkpoint=checkpoint,
+                                    features=features,
+                                    parent_ui=self.parent_ui,
+                                    validate=self.validate,
+                                    msg=self.lamella.status_info)
+
+        image_settings.beam_type = orig_beam_type
+
+        # align vertical
+        ## Maybe make this move pattern instead of beamshift/stage shift?
+        self.microscope.vertical_move(
+            dx=det.features[0].feature_m.x,
+            dy=det.features[0].feature_m.y,
+        )
+
         self.lamella.milling_pose = self.microscope.get_microscope_state()
 
         # beam_shift alignment
