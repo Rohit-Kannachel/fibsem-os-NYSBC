@@ -833,6 +833,8 @@ class MillUndercutTask(AutoLamellaTask):
         # acquire reference images
         self._acquire_set_of_reference_images(image_settings)
 
+        self.lamella.milling_pose = self.microscope.get_microscope_state()
+
 
 class MillRoughTask(AutoLamellaTask):
     """Task to mill the rough trench for a lamella."""
@@ -875,24 +877,24 @@ class MillRoughTask(AutoLamellaTask):
         ## Cross-Correlation does not take into effect local charging effects
         ## TODO: Make this optional/settable in config
 
-        checkpoint = r"C:\Users\Admin\Documents\fibsem_data\ml_models\lamella_and_trench\model-20260127-37.pt"
+        # checkpoint = r"C:\Users\Admin\Documents\fibsem_data\ml_models\lamella_and_trench\model-20260127-37.pt"
 
-        # do detection 
-        features = [LamellaCentre()]
-        det = update_detection_ui(microscope=self.microscope,
-                                    image_settings=self.image_settings,
-                                    checkpoint=checkpoint,
-                                    features=features,
-                                    parent_ui=self.parent_ui,
-                                    validate=self.validate,
-                                    msg=self.lamella.status_info)
+        # # do detection 
+        # features = [LamellaCentre()]
+        # det = update_detection_ui(microscope=self.microscope,
+        #                             image_settings=self.image_settings,
+        #                             checkpoint=checkpoint,
+        #                             features=features,
+        #                             parent_ui=self.parent_ui,
+        #                             validate=self.validate,
+        #                             msg=self.lamella.status_info)
 
-        # align vertical
-        ## Maybe make this move pattern instead of beamshift/stage shift?
-        self.microscope.vertical_move(
-            dx=det.features[0].feature_m.x,
-            dy=det.features[0].feature_m.y,
-        )
+        # # align vertical
+        # ## Maybe make this move pattern instead of beamshift/stage shift?
+        # self.microscope.vertical_move(
+        #     dx=det.features[0].feature_m.x,
+        #     dy=det.features[0].feature_m.y,
+        # )
 
 
         # mill rough trench
@@ -962,24 +964,24 @@ class MillPolishingTask(AutoLamellaTask):
         ## Cross-Correlation does not take into effect local charging effects
         ## TODO: Make this optional/settable in config
 
-        checkpoint = r"C:\Users\Admin\Documents\fibsem_data\ml_models\lamella_and_trench\model-20260127-37.pt"
+        # checkpoint = r"C:\Users\Admin\Documents\fibsem_data\ml_models\lamella_and_trench\model-20260127-37.pt"
 
-        # do detection 
-        features = [LamellaCentre()]
-        det = update_detection_ui(microscope=self.microscope,
-                                    image_settings=image_settings,
-                                    checkpoint=checkpoint,
-                                    features=features,
-                                    parent_ui=self.parent_ui,
-                                    validate=self.validate,
-                                    msg=self.lamella.status_info)
+        # # do detection 
+        # features = [LamellaCentre()]
+        # det = update_detection_ui(microscope=self.microscope,
+        #                             image_settings=image_settings,
+        #                             checkpoint=checkpoint,
+        #                             features=features,
+        #                             parent_ui=self.parent_ui,
+        #                             validate=self.validate,
+        #                             msg=self.lamella.status_info)
 
-        # align vertical
-        ## Maybe make this move pattern instead of beamshift/stage shift?
-        self.microscope.vertical_move(
-            dx=det.features[0].feature_m.x,
-            dy=det.features[0].feature_m.y,
-        )
+        # # align vertical
+        # ## Maybe make this move pattern instead of beamshift/stage shift?
+        # self.microscope.vertical_move(
+        #     dx=det.features[0].feature_m.x,
+        #     dy=det.features[0].feature_m.y,
+        # )
 
 
         # mill polishing 
@@ -1120,11 +1122,29 @@ class SetupLamellaTask(AutoLamellaTask):
 
         # move to lamella milling position
         ### Figure out what this is and why it does this!
-        # self._move_to_milling_pose()
 
+        print(f'################### lamella pose: {self.lamella.milling_pose}  ##########################')
+        print(f'##################### lamella position  {self.lamella.milling_pose.stage_position} ##########################')
+
+        # check if 
         self.log_status_message("SELECT_POSITION", "Selecting Position...")
         milling_angle = self.config.milling_angle
         is_close = self.microscope.is_close_to_milling_angle(milling_angle=milling_angle)
+
+        print(f'################### is close to milling angle: {is_close} ##########################')
+
+
+        # when multiple lamella are being setup, the move to milling pose reverts back to its previous stage
+        # if the another lamella has moved the stage to the required angle, the next lamella will move the stage back
+        # and then move again to the required stage, this is unneccessary and can cause extra stage movement and time
+        # if the stage tilt is already at the milling angle, we can adjust the lamella milling pose tilt angle and the other coordinates can remain
+
+        if is_close:
+            current_tilt_angle = self.microscope.get_microscope_state().stage_position.t
+            self.lamella.milling_pose.stage_position.t = current_tilt_angle
+
+        self._move_to_milling_pose()
+
 
         if not is_close and self.validate:
             current_milling_angle = self.microscope.get_current_milling_angle()
