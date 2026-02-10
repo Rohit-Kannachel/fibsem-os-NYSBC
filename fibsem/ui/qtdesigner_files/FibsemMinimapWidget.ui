@@ -39,8 +39,8 @@
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>636</width>
-         <height>823</height>
+         <width>629</width>
+         <height>810</height>
         </rect>
        </property>
        <layout class="QGridLayout" name="gridLayout_5">
@@ -128,20 +128,24 @@
            <item row="0" column="1">
             <widget class="QComboBox" name="comboBox_tile_position"/>
            </item>
-           <item row="0" column="0">
-            <widget class="QLabel" name="label_position_header">
-             <property name="font">
-              <font>
-               <weight>75</weight>
-               <bold>true</bold>
-              </font>
-             </property>
+           <item row="1" column="0">
+            <widget class="QLabel" name="label_position_name">
              <property name="text">
-              <string>Saved Positions</string>
+              <string>Position Name</string>
              </property>
             </widget>
            </item>
-           <item row="6" column="0">
+           <item row="8" column="0">
+            <widget class="QCheckBox" name="checkBox_pattern_overlay">
+             <property name="text">
+              <string>Display Pattern</string>
+             </property>
+            </widget>
+           </item>
+           <item row="8" column="1">
+            <widget class="QComboBox" name="comboBox_pattern_overlay"/>
+           </item>
+           <item row="7" column="0">
             <widget class="QLabel" name="label_pattern_overlay">
              <property name="font">
               <font>
@@ -164,20 +168,6 @@
              </property>
             </widget>
            </item>
-           <item row="4" column="0" colspan="2">
-            <widget class="QLabel" name="label_position_info">
-             <property name="text">
-              <string>No Positions saved.</string>
-             </property>
-            </widget>
-           </item>
-           <item row="1" column="0">
-            <widget class="QLabel" name="label_position_name">
-             <property name="text">
-              <string>Position Name</string>
-             </property>
-            </widget>
-           </item>
            <item row="2" column="0">
             <widget class="QPushButton" name="pushButton_update_position">
              <property name="text">
@@ -185,15 +175,12 @@
              </property>
             </widget>
            </item>
-           <item row="7" column="0">
-            <widget class="QCheckBox" name="checkBox_pattern_overlay">
+           <item row="5" column="0" colspan="2">
+            <widget class="QLabel" name="label_position_info">
              <property name="text">
-              <string>Display Pattern</string>
+              <string>No Positions saved.</string>
              </property>
             </widget>
-           </item>
-           <item row="7" column="1">
-            <widget class="QComboBox" name="comboBox_pattern_overlay"/>
            </item>
            <item row="3" column="0">
             <widget class="QPushButton" name="pushButton_move_to_position">
@@ -202,10 +189,30 @@
              </property>
             </widget>
            </item>
+           <item row="0" column="0">
+            <widget class="QLabel" name="label_position_header">
+             <property name="font">
+              <font>
+               <weight>75</weight>
+               <bold>true</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>Saved Positions</string>
+             </property>
+            </widget>
+           </item>
            <item row="3" column="1">
             <widget class="QPushButton" name="pushButton_remove_position">
              <property name="text">
               <string>Remove Position</string>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="0" colspan="2">
+            <widget class="QPushButton" name="pushButton_save_image_with_positions">
+             <property name="text">
+              <string>Save Overview Image With Positions</string>
              </property>
             </widget>
            </item>
@@ -400,7 +407,7 @@
      <x>0</x>
      <y>0</y>
      <width>670</width>
-     <height>20</height>
+     <height>25</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

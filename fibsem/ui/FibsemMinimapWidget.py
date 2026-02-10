@@ -263,6 +263,7 @@ class FibsemMinimapWidget(FibsemMinimapWidgetUI.Ui_MainWindow, QMainWindow):
         self.pushButton_move_to_position.clicked.connect(self.move_to_position_pressed)
         self.comboBox_tile_position.currentIndexChanged.connect(self.update_current_selected_position)
         self.pushButton_remove_position.clicked.connect(self.remove_selected_position_pressed)
+        self.pushButton_save_image_with_positions.clicked.connect(self.save_image_with_positions_pressed)
 
         # disable updating position name:
         self.label_position_name.setVisible(False)
@@ -318,6 +319,7 @@ class FibsemMinimapWidget(FibsemMinimapWidgetUI.Ui_MainWindow, QMainWindow):
 
         # set styles
         self.pushButton_update_position.setStyleSheet(stylesheets.BLUE_PUSHBUTTON_STYLE)
+        self.pushButton_save_image_with_positions.setStyleSheet(stylesheets.BLUE_PUSHBUTTON_STYLE)
         self.pushButton_run_tile_collection.setStyleSheet(stylesheets.GREEN_PUSHBUTTON_STYLE)
         self.pushButton_cancel_acquisition.setStyleSheet(stylesheets.RED_PUSHBUTTON_STYLE)
         self.progressBar_acquisition.setStyleSheet(stylesheets.PROGRESS_BAR_GREEN_STYLE)
@@ -880,6 +882,7 @@ class FibsemMinimapWidget(FibsemMinimapWidgetUI.Ui_MainWindow, QMainWindow):
         self.pushButton_move_to_position.setEnabled(has_positions)
         self.pushButton_remove_position.setEnabled(has_positions)
         self.pushButton_update_position.setEnabled(has_positions)
+        self.pushButton_save_image_with_positions.setEnabled(has_positions)
         self.groupBox_positions.setVisible(has_positions)
 
         idx = self.comboBox_tile_position.currentIndex()
@@ -903,6 +906,24 @@ class FibsemMinimapWidget(FibsemMinimapWidgetUI.Ui_MainWindow, QMainWindow):
 
         del self.parent_widget.experiment.positions[idx]
         self.parent_widget.experiment.save()
+
+    def save_image_with_positions_pressed(self):
+
+        filepath = self.get_imaging_parameters()["path"]
+        filename = self.get_imaging_parameters()["filename"] + "_with_positions.png"
+        full_filepath = os.path.join(filepath, filename)
+
+        try:
+
+            self.viewer.export_figure(full_filepath, flash=False)
+            napari.utils.notifications.show_info("Saved Overview Image with Positions")
+
+        except Exception as e:
+
+            napari.utils.notifications.show_error("Error saving image with positions. See log for details.")
+
+
+        
 
     def _update_position_display(self):
         """refresh the position display."""
