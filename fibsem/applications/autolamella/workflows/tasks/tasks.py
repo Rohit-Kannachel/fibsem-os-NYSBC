@@ -1123,16 +1123,21 @@ class SetupLamellaTask(AutoLamellaTask):
         # move to lamella milling position
         ### Figure out what this is and why it does this!
 
-        print(f'################### lamella pose: {self.lamella.milling_pose}  ##########################')
-        print(f'##################### lamella position  {self.lamella.milling_pose.stage_position} ##########################')
-
+        
         # check if 
         self.log_status_message("SELECT_POSITION", "Selecting Position...")
         milling_angle = self.config.milling_angle
         is_close = self.microscope.is_close_to_milling_angle(milling_angle=milling_angle)
 
-        print(f'################### is close to milling angle: {is_close} ##########################')
+        print(f'################################################################################################################')
 
+        print(f"Is close to milling angle: {is_close} , target angle: {milling_angle:.2f}")
+
+        print(f"Current stage tilt: {np.degrees(self.microscope.get_microscope_state().stage_position.t):.2f} , target milling angle: {milling_angle:.2f}")
+
+        print(f"self.validate = {self.validate}")
+
+        print(f'################################################################################################################')
 
         # when multiple lamella are being setup, the move to milling pose reverts back to its previous stage
         # if the another lamella has moved the stage to the required angle, the next lamella will move the stage back
@@ -1163,6 +1168,9 @@ class SetupLamellaTask(AutoLamellaTask):
         orig_beam_type = image_settings.beam_type
         image_settings.beam_type = BeamType.ION
 
+        # self._align_reference_image(ALIGNMENT_REFERENCE_IMAGE_FILENAME)
+
+
         features = [LamellaCentre()]
         det = update_detection_ui(microscope=self.microscope,
                                     image_settings=image_settings,
@@ -1176,6 +1184,10 @@ class SetupLamellaTask(AutoLamellaTask):
 
         # align vertical
         ## Maybe make this move pattern instead of beamshift/stage shift?
+
+        print(f'################################################################################################################')
+        print(f"Detection results: dx = {det.features[0].feature_m.x}, dy = {det.features[0].feature_m.y}")
+
         self.microscope.vertical_move(
             dx=det.features[0].feature_m.x,
             dy=det.features[0].feature_m.y,
@@ -1184,7 +1196,6 @@ class SetupLamellaTask(AutoLamellaTask):
         self.lamella.milling_pose = self.microscope.get_microscope_state()
 
         # beam_shift alignment
-        self._align_reference_image(ALIGNMENT_REFERENCE_IMAGE_FILENAME)
 
         self.log_status_message("SETUP_PATTERNS", "Setting up Lamella Patterns...")
 
