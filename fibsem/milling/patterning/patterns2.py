@@ -1576,7 +1576,7 @@ class WaffleNotchPattern(BasePattern[FibsemRectangleSettings]):
             height=vheight,
             depth=depth,
             centre_x=point.x,
-            centre_y=point.y - distance / 2 - vheight / 2 + hheight / 2,
+            centre_y=point.y - distance / 2 - vheight / 2,
             scan_direction="TopToBottom",
             cross_section=cross_section
         )
@@ -1586,7 +1586,7 @@ class WaffleNotchPattern(BasePattern[FibsemRectangleSettings]):
             height=vheight,
             depth=depth,
             centre_x=point.x,
-            centre_y=point.y + distance / 2 + vheight / 2 - hheight / 2,
+            centre_y=point.y + distance / 2 + vheight / 2,
             scan_direction="BottomToTop",
             cross_section=cross_section
         )
@@ -1595,8 +1595,8 @@ class WaffleNotchPattern(BasePattern[FibsemRectangleSettings]):
             width=hwidth,
             height=hheight,
             depth=depth,
-            centre_x=point.x + (hwidth / 2 + vwidth / 2) * inverted,
-            centre_y=point.y - distance / 2,
+            centre_x=point.x + (hwidth / 2) * inverted,
+            centre_y=point.y - distance / 2 - (hheight / 2),
             scan_direction="TopToBottom",
             cross_section=cross_section
         )
@@ -1605,8 +1605,8 @@ class WaffleNotchPattern(BasePattern[FibsemRectangleSettings]):
             width=hwidth,
             height=hheight,
             depth=depth,
-            centre_x=point.x + (hwidth / 2 + vwidth / 2) * inverted,
-            centre_y=point.y + distance / 2,
+            centre_x=point.x + (hwidth / 2) * inverted,
+            centre_y=point.y + distance / 2 + (hheight / 2),
             scan_direction="BottomToTop",
             cross_section=cross_section
         )
@@ -1615,7 +1615,7 @@ class WaffleNotchPattern(BasePattern[FibsemRectangleSettings]):
             width=vwidth,
             height=distance + hheight,
             depth=depth,
-            centre_x=point.x + (hwidth + vwidth) * inverted,
+            centre_x=point.x + (hwidth - vwidth/2) * inverted,
             centre_y=point.y,
             scan_direction="TopToBottom",
             cross_section=cross_section
