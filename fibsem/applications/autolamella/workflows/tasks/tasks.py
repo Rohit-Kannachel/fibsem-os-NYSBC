@@ -711,8 +711,10 @@ class MillTrenchTask(AutoLamellaTask):
             image_settings.beam_type = BeamType.ELECTRON
             calibration.auto_charge_neutralisation(self.microscope, image_settings)
 
+
         # reference images
         self._acquire_set_of_reference_images(image_settings)
+
 
 
 class MillUndercutTask(AutoLamellaTask):
@@ -726,7 +728,10 @@ class MillUndercutTask(AutoLamellaTask):
         image_settings = self.config.imaging
         image_settings.path = self.lamella.path
 
-        checkpoint = r"C:\Users\Admin\Documents\fibsem_data\ml_models\lamella_and_trench\model-20260127-37.pt" # if self.lamella.protocol.options.checkpoint is None else self.lamella.protocol.options.checkpoint
+        # checkpoint = r"C:\Users\Admin\Documents\fibsem_data\ml_models\lamella_and_trench\model-20260127-37.pt" # if self.lamella.protocol.options.checkpoint is None else self.lamella.protocol.options.checkpoint
+
+        checkpoint = self.config.model_checkpoint
+
 
         # move to sem orientation
         self.log_status_message("MOVE_TO_UNDERCUT", "Moving to Undercut Position...")
@@ -1129,15 +1134,6 @@ class SetupLamellaTask(AutoLamellaTask):
         milling_angle = self.config.milling_angle
         is_close = self.microscope.is_close_to_milling_angle(milling_angle=milling_angle)
 
-        print(f'################################################################################################################')
-
-        print(f"Is close to milling angle: {is_close} , target angle: {milling_angle:.2f}")
-
-        print(f"Current stage tilt: {np.degrees(self.microscope.get_microscope_state().stage_position.t):.2f} , target milling angle: {milling_angle:.2f}")
-
-        print(f"self.validate = {self.validate}")
-
-        print(f'################################################################################################################')
 
         # when multiple lamella are being setup, the move to milling pose reverts back to its previous stage
         # if the another lamella has moved the stage to the required angle, the next lamella will move the stage back
@@ -1151,16 +1147,19 @@ class SetupLamellaTask(AutoLamellaTask):
         self._move_to_milling_pose()
 
 
-        if not is_close and self.validate:
-            current_milling_angle = self.microscope.get_current_milling_angle()
-            ret = ask_user(parent_ui=self.parent_ui,
-                        msg=f"Tilt to specified milling angle ({milling_angle:.1f} {constants.DEGREE_SYMBOL})? "
-                        f"Current milling angle is {current_milling_angle:.1f} {constants.DEGREE_SYMBOL}.",
-                        pos="Tilt", neg="Skip")
-            if ret:
+        if not is_close:
+            if self.validate:
+                current_milling_angle = self.microscope.get_current_milling_angle()
+                ret = ask_user(parent_ui=self.parent_ui,
+                            msg=f"Tilt to specified milling angle ({milling_angle:.1f} {constants.DEGREE_SYMBOL})? "
+                            f"Current milling angle is {current_milling_angle:.1f} {constants.DEGREE_SYMBOL}.",
+                            pos="Tilt", neg="Skip")
+                if ret:
+                    self.microscope.move_to_milling_angle(milling_angle=np.radians(milling_angle))
+            else:
                 self.microscope.move_to_milling_angle(milling_angle=np.radians(milling_angle))
 
-        checkpoint = r"C:\Users\Admin\Documents\fibsem_data\ml_models\lamella_and_trench\model-20260127-37.pt"
+        checkpoint = self.config.model_checkpoint
 
         # do detection 
 
