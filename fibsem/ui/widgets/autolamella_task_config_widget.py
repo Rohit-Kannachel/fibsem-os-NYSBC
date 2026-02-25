@@ -493,7 +493,7 @@ class AutoLamellaTaskParametersConfigWidget(QWidget):
                 self.grid_layout.addWidget(label, self.current_row, 0)
                 self.grid_layout.addWidget(widget, self.current_row, 1)
                 self.current_row += 1
-
+    
         self.show()
 
     def _create_parameter_widget(self,

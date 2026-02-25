@@ -601,8 +601,6 @@ class AutoLamellaProtocolTaskConfigEditor(QWidget):
 
         if self.experiment and self.experiment.task_protocol.task_config:
             
-            
-            
             task_name = current_task_config.task_name
 
             current_task_config.model_checkpoint = text
