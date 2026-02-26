@@ -6,6 +6,7 @@ from fibsem.ui.FibsemCryoDepositionWidget import FibsemCryoDepositionWidget
 from fibsem.ui.FibsemMinimapWidget import FibsemMinimapWidget
 from fibsem.ui.FibsemManipulatorWidget import FibsemManipulatorWidget
 from fibsem.ui.FibsemSpotBurnWidget import FibsemSpotBurnWidget
+from fibsem.ui.SenseAIControlWidget import SenseAIControlWidget
 try:
     from fibsem.ui.FibsemEmbeddedDetectionWidget import FibsemEmbeddedDetectionUI
     DETECTION_AVAILABLE = True
