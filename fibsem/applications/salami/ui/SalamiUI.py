@@ -69,6 +69,7 @@ class SalamiUI(SalamiMainUI.Ui_MainWindow, QMainWindow):
         self.update_ui()
 
     def connect_to_microscope(self):
+        
         self.microscope = self.system_widget.microscope
         self.settings = self.system_widget.settings
 
@@ -132,6 +133,12 @@ class SalamiUI(SalamiMainUI.Ui_MainWindow, QMainWindow):
                 # self.image_widget.acquisition_progress_signal.disconnect(self.handle_acquisition_update)
                 self.image_widget.deleteLater()
                 self.image_widget = None
+            if self.SenseAI_widget is not None:
+                self.tabWidget.removeTab(self.tabWidget.indexOf(self.SenseAI_widget))
+                self.SenseAI_widget.deleteLater()
+                self.SenseAI_widget = None
+
+
 
 
     def update_ui(self):

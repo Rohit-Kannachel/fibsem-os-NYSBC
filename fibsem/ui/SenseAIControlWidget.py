@@ -4,10 +4,12 @@ from fibsem.ui import stylesheets
 from fibsem.ui.qtdesigner_files import SenseAIControlWidget as SenseAIControlWidgetUI
 from PyQt5 import QtWidgets
 from fibsem.microscope import FibsemMicroscope
+from fibsem.SenseAI_SG import SenseAI_ModuleControl, SenseAI_Config
 import os
 import numpy as np
 import time
-from senseai import SenseAI
+import logging
+
 
 class SenseAIControlWidget(SenseAIControlWidgetUI.Ui_Form, QtWidgets.QWidget):
 
@@ -29,7 +31,11 @@ class SenseAIControlWidget(SenseAIControlWidgetUI.Ui_Form, QtWidgets.QWidget):
         self.microscope = microscope
         self.viewer = parent.viewer
         self.scan_gen_initialized = False
-        self.senseAI: SenseAI = None
+        self.senseAI: SenseAI_ModuleControl = None
+        self.senseAI_config: SenseAI_Config = None
+
+        self.dll_path: str = None
+        self.config_path: str = None
 
         self.setup_connections()
 
@@ -40,84 +46,150 @@ class SenseAIControlWidget(SenseAIControlWidgetUI.Ui_Form, QtWidgets.QWidget):
         self.pushButton_AcquireImage.clicked.connect(self.acquire_image)
         self.pushButton_Reconstruct.clicked.connect(self.reconstruct)
 
+        self.toolButton_dll_load.clicked.connect(self.load_dll_path)
+        self.toolButton_config_load.clicked.connect(self.load_config_path)
+
         # hide other controls until scan generator is initialized
         self.groupBox_ScanControl.setVisible(self.scan_gen_initialized)
         self.groupBox_Reconstruct_control.setVisible(self.scan_gen_initialized)
 
 
+        ## add Scan options to scan type drop down
+
+        scanTypes = ["Raster", "LineHop", "Random", "Spiral"]
+        self.comboBox_ScanPattern.addItems(scanTypes)
+
+
+
+    def load_dll_path(self):
+        """
+        Open a file dialog to select the SenseAI DLL path and store it in self.dll_path.
+        """
+
+        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Select SenseAI DLL", "", "DLL Files (*.dll)")
+
+        if file_path:
+            self.dll_path = file_path
+            self.lineEdit_dllPath.setText(self.dll_path)
+            logging.info(f"Selected SenseAI DLL path: {self.dll_path}")
+        else:
+            logging.warning("No DLL path selected.")
+            self.lineEdit_dllPath.setText("")
+
+
+    def load_config_path(self):
+        """
+        Open a file dialog to select the SenseAI config path and store it in self.config_path.
+        """
+
+        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Select SenseAI JSON Workspace", "", "Config Files (*.json)")
+
+        if file_path:
+            self.config_path = file_path
+            self.lineEdit_ConfigPath.setText(self.config_path)
+            logging.info(f"Selected SenseAI config path: {self.config_path}")
+        else:
+            logging.warning("No config path selected.")
+            self.lineEdit_ConfigPath.setText("")
 
     def initialize_scan_generator(self):
 
-        print("Initializing scan generator...")
+        ### 
+        
 
-        init = self.init_webcam()
 
-        if not init:
-            print(f"error initialising")
-            return 
+        try:
+            logging.info("Loading SenseAI Module Control...")
+            self.senseAI = SenseAI_ModuleControl(dll_path=self.dll_path)
+            self.senseAI_config = self.senseAI.config
 
-        self.scan_gen_initialized = True
+
+            logging.info("SenseAI Module Control loaded successfully")
+            self.scan_gen_initialized = True
+        except Exception as e:
+            logging.error(f"Error loading SenseAI Module Control: {e}")
+            napari.utils.notifications.show_error(f"Error loading SenseAI Module Control: {e}")
+            return
+        
+        try:
+            logging.info("Loading SenseAI config...")
+            self.senseAI_config.load_config_information(self.config_path)
+            logging.info("SenseAI config loaded successfully")
+        except Exception as e:
+            logging.error(f"Error loading SenseAI config: {e}")
+            napari.utils.notifications.show_error(f"Error loading SenseAI config: {e}")
+            return
+        
+        self.update_ui()
+
 
         # show other controls
         self.groupBox_ScanControl.setVisible(self.scan_gen_initialized)
         self.groupBox_Reconstruct_control.setVisible(self.scan_gen_initialized)
+        
 
 
-    def init_webcam(self):
 
-        SenseAI_version_path = r"C:\Program Files\SenseAI\SenseAI 2026.1.1"
-        self.senseAI = SenseAI(os.path.join(SenseAI_version_path,"SenseAI.dll"))
+    def update_ui(self):
+        """Update the UI elements with the loaded SenseAI configuration."""
 
-        sg = self.senseAI.hw.add_scan_generator("WCScanGen", "QDMock", {
-            "ScanSize": [
-                1536,
-                1024
-            ],
-            "DwellTime": 0.010,
-            "Pattern": "Raster",
-            "Sampling": 1.0,
-            "ResetBuffer": True,
-        })
+        self.spinBox_ScanSizeX.setValue(self.senseAI_config.scanGen_config["ScanSize"][0])
+        self.spinBox_ScanSizeY.setValue(self.senseAI_config.scanGen_config["ScanSize"][1])
+
+        self.doubleSpinBox_DwellTime.setValue(self.senseAI_config.scanGen_config["DwellTime"])
+
+        self.spinBox_SamplingRate.setValue(int(self.senseAI_config.scanGen_config["Sampling"]*100))
+
+        self.comboBox_ScanPattern.setCurrentText(self.senseAI_config.scanGen_config["Pattern"])
+
+        self.checkBox_resetBuffer.setChecked(self.senseAI_config.scanGen_config["ResetBuffer"])
 
 
-        self.senseAI.hw.add_detector("WCDetector", "ScanGenerator", sg["Name"], {
-            "Input": 0,
-            "QDType": "qd_analogue"
-        })
 
+    def update_scanGen_config(self):
+        """Update the SenseAI configuration with the values from the UI elements."""
+
+        self.senseAI_config.scanGen_config["ScanSize"] = [self.spinBox_ScanSizeX.value(), self.spinBox_ScanSizeY.value()]
+
+        self.senseAI_config.scanGen_config["DwellTime"] = self.doubleSpinBox_DwellTime.value()
+
+        self.senseAI_config.scanGen_config["Sampling"] = self.spinBox_SamplingRate.value()/100
+
+        self.senseAI_config.scanGen_config["Pattern"] = self.comboBox_ScanPattern.currentText()
+
+        self.senseAI_config.scanGen_config["ResetBuffer"] = self.checkBox_resetBuffer.isChecked()
+
+
+
+    def update_scan_generator(self):
+
+        """Update the SenseAI scan generator with the current configuration."""
+
+        self.update_scanGen_config()
 
         try:
-            self.senseAI.hw.init_scan_generator("WCScanGen")
+            self.senseAI.update_ScanGenerator(self.senseAI_config.scanGen_config)
+            logging.info("SenseAI scan generator updated successfully")
         except Exception as e:
-            print(f"Error Initialising: {e}")
-            return False
-        
-        self.senseAI.hw.update_scan_generator("WCScanGen",
-                           {
-                               "Pattern":"Linehop",\
-                               "Sampling":0.25,
-                               "ResetBuffer":True
-                           })
-        
-        time.sleep(3)
+            logging.error(f"Error updating SenseAI scan generator: {e}")
+            napari.utils.notifications.show_error(f"Error updating SenseAI scan generator: {e}")
+            return
 
-        return True
-
-
-
-
-    
     def acquire_image(self):
+
+        self.update_scan_generator()
 
         print("Acquiring image...")
 
         try:
-            output3 = self.senseAI.hw.get_detector_image("WCDetector")
+            output = self.senseAI.get_detector_image()
+            
+
         except Exception as e:
-            print(f"Capture failed: {e}")
+            
             return
-        img = output3[0]
-        # mask1 = output3[1]
+        img = output[0]
+        # mask1 = output[1]
 
         # img = np.random.randint(0, 256, (1024, 1536), dtype=np.uint8)
 
