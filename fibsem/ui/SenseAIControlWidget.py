@@ -5,10 +5,14 @@ from fibsem.ui.qtdesigner_files import SenseAIControlWidget as SenseAIControlWid
 from PyQt5 import QtWidgets
 from fibsem.microscope import FibsemMicroscope
 from fibsem.SenseAI_SG import SenseAI_ModuleControl, SenseAI_Config
+from fibsem.structures import FibsemImage, FibsemImageMetadata, ImageSettings
 import os
 import numpy as np
 import time
 import logging
+from fibsem.config import DEFAULT_SENSEAI_DLL, DEFAULT_SENSEAI_CONFIG
+
+
 
 
 class SenseAIControlWidget(SenseAIControlWidgetUI.Ui_Form, QtWidgets.QWidget):
@@ -34,6 +38,10 @@ class SenseAIControlWidget(SenseAIControlWidgetUI.Ui_Form, QtWidgets.QWidget):
         self.senseAI: SenseAI_ModuleControl = None
         self.senseAI_config: SenseAI_Config = None
 
+        self.senseAI_img: np.ndarray = None
+        self.senseAI_mask: np.ndarray = None
+        self.senseAI_recon: np.ndarray = None
+
         self.dll_path: str = None
         self.config_path: str = None
 
@@ -56,8 +64,13 @@ class SenseAIControlWidget(SenseAIControlWidgetUI.Ui_Form, QtWidgets.QWidget):
 
         ## add Scan options to scan type drop down
 
-        scanTypes = ["Raster", "LineHop", "Random", "Spiral"]
+        scanTypes = ["Raster", "Linehop", "Random", "Raster-Random","Lane-Constrained Random","Interleaved Linehop"]
         self.comboBox_ScanPattern.addItems(scanTypes)
+
+        ## Load Defaults
+
+        self.lineEdit_dllPath.setText(DEFAULT_SENSEAI_DLL)
+        self.lineEdit_ConfigPath.setText(DEFAULT_SENSEAI_CONFIG)
 
 
 
@@ -95,7 +108,8 @@ class SenseAIControlWidget(SenseAIControlWidgetUI.Ui_Form, QtWidgets.QWidget):
     def initialize_scan_generator(self):
 
         ### 
-        
+        self.dll_path = self.lineEdit_dllPath.text()
+        self.config_path = self.lineEdit_ConfigPath.text()
 
 
         try:
@@ -120,6 +134,22 @@ class SenseAIControlWidget(SenseAIControlWidgetUI.Ui_Form, QtWidgets.QWidget):
             napari.utils.notifications.show_error(f"Error loading SenseAI config: {e}")
             return
         
+
+        ## initialise the scan generator
+
+        try:
+            self.senseAI.init_scan_generator()
+            logging.info("Scan Generator Initialised")
+        except Exception as e:
+            logging.error(f"Error initialising scan generator: {e}")
+            napari.utils.notifications.show_error(f"Error initialising scan generator: {e}")
+            return
+
+        ## if module is loaded correctly, the electron beam scan needs to be set
+        ## to external scan so the scan gen can control the scanning
+
+        self.microscope._set(key="ElectronBeam_scan",value="external")
+
         self.update_ui()
 
 
@@ -188,16 +218,36 @@ class SenseAIControlWidget(SenseAIControlWidgetUI.Ui_Form, QtWidgets.QWidget):
         except Exception as e:
             
             return
-        img = output[0]
-        # mask1 = output[1]
+        self.senseAI_img = output[0]
+        self.senseAI_mask = output[1]
 
-        # img = np.random.randint(0, 256, (1024, 1536), dtype=np.uint8)
-
-        self.parent.image_widget.eb_layer.data = img
+        self._update_eb_image_viewer(self.senseAI_img)
+        
 
 
     def reconstruct(self):
 
-        print("Reconstructing...")
+
+
+        try:
+            recon = self.senseAI.quick_recon_single(self.senseAI_img,self.senseAI_mask)
+        except Exception as e:
+            logging.info(f"error performing reconstruction {e}")
+            return
+
+        self._update_eb_image_viewer(recon)
+
+
+
+    def _update_eb_image_viewer(self,image: np.ndarray) -> None:
+
+        # normalise and make image 8 bit
+
+        normalised_image = np.interp(image, (image.min(), image.max()), (0, 255)).astype(np.uint8)
+
+        fb_image = FibsemImage(normalised_image)
+
+        self.parent.image_widget.eb_image = fb_image
+        self.parent.image_widget._on_acquire_nofilter(fb_image)
 
     

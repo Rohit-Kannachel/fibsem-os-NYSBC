@@ -3745,6 +3745,18 @@ class ThermoMicroscope(FibsemMicroscope):
             if key == "angular_correction_tilt_correction":
                 beam.angular_correction.tilt_correction.turn_on() if value else beam.angular_correction.tilt_correction.turn_off()
                 return
+        
+        # set the scan gen to external or full frame (EBEAM ONLY)
+        if key == "ElectronBeam_scan":
+            if "external" == value:
+                self.connection.beams.electron_beam.scanning.mode.set_external()
+                logging.info("Electron Beam Scanning Set to External.")
+
+            if "full_frame" == value:
+                self.connection.beams.electron_beam.scanning.mode.set_full_frame()
+                logging.info("Electron Beam Scanning Set to Full Frame.")
+
+
     
         # ion beam properties
         if beam_type is BeamType.ION:

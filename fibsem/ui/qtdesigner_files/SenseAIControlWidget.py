@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'SenseAIControlWidget.ui'
+# Form implementation generated from reading ui file 'C:\Code\fibsem-os-NYSBC\fibsem\ui\qtdesigner_files\SenseAIControlWidget.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.9
 #
@@ -30,7 +30,7 @@ class Ui_Form(object):
         self.gridLayout.addWidget(self.toolButton_dll_load, 2, 2, 1, 1)
         self.label = QtWidgets.QLabel(Form)
         self.label.setText("")
-        self.label.setPixmap(QtGui.QPixmap("../../util/resources/logos/senseAI.png"))
+        self.label.setPixmap(QtGui.QPixmap("C:\\Code\\fibsem-os-NYSBC\\fibsem\\ui\\qtdesigner_files\\../../util/resources/logos/senseAI.png"))
         self.label.setAlignment(QtCore.Qt.AlignCenter)
         self.label.setObjectName("label")
         self.gridLayout.addWidget(self.label, 1, 0, 1, 3)
@@ -80,6 +80,7 @@ class Ui_Form(object):
         self.comboBox_ScanPattern.setObjectName("comboBox_ScanPattern")
         self.gridLayout_2.addWidget(self.comboBox_ScanPattern, 2, 1, 1, 2)
         self.spinBox_SamplingRate = QtWidgets.QSpinBox(self.groupBox_ScanControl)
+        self.spinBox_SamplingRate.setMaximum(100)
         self.spinBox_SamplingRate.setObjectName("spinBox_SamplingRate")
         self.gridLayout_2.addWidget(self.spinBox_SamplingRate, 3, 1, 1, 2)
         self.pushButton_AcquireImage = QtWidgets.QPushButton(self.groupBox_ScanControl)

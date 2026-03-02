@@ -266,3 +266,8 @@ AUTOLAMELLA_PROTOCOL_PATH: Path = os.path.join(AUTOLAMELLA_BASE_PATH, "protocol"
 AUTOLAMELLA_TASK_PROTOCOL_PATH: Path = os.path.join(AUTOLAMELLA_BASE_PATH, "protocol", "task-protocol.yaml")
 
 os.makedirs(AUTOLAMELLA_LOG_PATH, exist_ok=True)
+
+
+## SENSEAI
+DEFAULT_SENSEAI_DLL = r"C:\Program Files\SenseAI\SenseAI 2026.1.1\SenseAI.dll"
+DEFAULT_SENSEAI_CONFIG = os.path.join(CONFIG_PATH,"hydra_workspace.json")

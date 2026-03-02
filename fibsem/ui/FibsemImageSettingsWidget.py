@@ -229,6 +229,25 @@ class FibsemImageSettingsWidget(ImageSettingsWidgetUI.Ui_Form, QtWidgets.QWidget
         self.restore_active_layer_for_movement()
         self.viewer_update_signal.emit()
 
+    @ensure_main_thread
+    def _on_acquire_nofilter(self,image: FibsemImage):
+        """
+        Update the viewer with image (no median filtering)
+
+        """
+        try:
+            # Update existing layer
+            layer = self.viewer.layers["ELECTRON"]
+            layer.data = image.data
+        except Exception as e:
+            logging.error(f"Error updating image layer: {e}")
+
+        self._update_layer_positions()
+        self.restore_active_layer_for_movement()
+        print(f"emitting viewer update signal")
+        self.viewer_update_signal.emit()
+        self.update_ui_tools()
+
     def start_live_acquisition(self, event=None):
         # Start acquisition logic
         self.pushButton_start_acquisition.setEnabled(False)
@@ -767,27 +786,42 @@ class FibsemImageSettingsWidget(ImageSettingsWidgetUI.Ui_Form, QtWidgets.QWidget
     def update_ui_tools(self):
         """Redraw the ui tools (scalebar, crosshair)"""
 
+        print(f"self eb image {self.eb_image}  self ib image {self.ib_image}")
+
         # draw scalebar and crosshair
         if self.eb_image is not None and self.ib_image is not None:
-            draw_scalebar_in_napari(
-                viewer=self.viewer,
-                sem_shape=self.eb_image.data.shape,
-                fib_shape=self.ib_image.data.shape,
-                sem_fov=self.eb_image.metadata.image_settings.hfw,
-                fib_fov=self.ib_image.metadata.image_settings.hfw,
-                is_checked=self.scalebar_checkbox.isChecked(),
-            )
-            fm_shape = None
-            if self.microscope.fm is not None:
-                fm_shape = self.microscope.fm.camera.resolution[::-1]
 
-            draw_crosshair_in_napari(
-                viewer=self.viewer,
-                sem_shape=self.eb_image.data.shape,
-                fib_shape=self.ib_image.data.shape,
-                fm_shape=fm_shape,
-                is_checked=self.crosshair_checkbox.isChecked(),
-            )
+            if self.scalebar_checkbox.isChecked():
+                # TODO: find image metadata like HFW from microscope
+
+                draw_scalebar_in_napari(
+                    viewer=self.viewer,
+                    sem_shape=self.eb_image.data.shape,
+                    fib_shape=self.ib_image.data.shape,
+                    sem_fov=self.eb_image.metadata.image_settings.hfw,
+                    fib_fov=self.ib_image.metadata.image_settings.hfw,
+                    is_checked=self.scalebar_checkbox.isChecked(),
+                )
+                fm_shape = None
+                if self.microscope.fm is not None:
+                    fm_shape = self.microscope.fm.camera.resolution[::-1]
+
+                print(f"drawing crosshair")
+                print(f"sem_shape {self.eb_image.data.shape} fib shape {self.ib_image.data.shape}")
+
+            if self.crosshair_checkbox.isChecked():
+                
+                fm_shape = None
+                if self.microscope.fm is not None:
+                    fm_shape = self.microscope.fm.camera.resolution[::-1]
+
+                draw_crosshair_in_napari(
+                    viewer=self.viewer,
+                    sem_shape=self.eb_image.data.shape,
+                    fib_shape=self.ib_image.data.shape,
+                    fm_shape=fm_shape,
+                    is_checked=self.crosshair_checkbox.isChecked(),
+                )
 
         # restore active layer for movement
         self.restore_active_layer_for_movement()

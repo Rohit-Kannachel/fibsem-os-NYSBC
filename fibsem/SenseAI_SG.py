@@ -19,6 +19,7 @@ class SenseAI_Config():
         self.senseAI_WorkspaceJSON_path = senseAI_WorkspaceJSON_path
         self.scanGen_config: dict = None
         self.detector_config: dict = None
+        self.scanGen_initialised: bool = False
 
         self.load_config_information(self.senseAI_WorkspaceJSON_path)
 
@@ -32,11 +33,11 @@ class SenseAI_Config():
             
             self.scanGen_config = {
                 "ScanSize": [
-                    1536,
-                    1024
+                    640,
+                    480
                 ],
                 "DwellTime": 0.010,
-                "Pattern": "Raster",
+                "Pattern": "Linehop",
                 "Sampling": 0.3,
                 "ResetBuffer": True,
             }
@@ -47,6 +48,26 @@ class SenseAI_Config():
             }
         
             return
+        
+        try:
+            workspace_config = self._load_json(json_path)
+        except Exception as e:
+            logging.error(f"Error loading Workspace JSON file: {e}")
+            return
+
+        
+        self.scanGen_config = workspace_config["ScanGenerators"][0]
+        self.detector_config = workspace_config["Detectors"][0]
+
+        return
+
+    
+    def _load_json(self,json_path:str):
+
+        with open(json_path, "r",encoding="utf-8-sig") as f:
+            data = json.load(f)
+        
+        return data
     
 
     def update_config(self):
@@ -76,8 +97,8 @@ class SenseAI_ModuleControl():
         self.scanGen_added: bool = False
         self.detector_added: bool = False
 
-        self.scanGen_name = "WCScanGen"
-        self.detector_name = "WCDetector"
+        self.scanGen_name = "Quantum Detectors"
+        self.detector_name = "Quantum Detectors"
 
         self.load_dll()
 
@@ -99,9 +120,11 @@ class SenseAI_ModuleControl():
 
 
         try:
-            from senseai import SenseAI
+            from senseai import SenseAI, quick_recon, quick_recon_single
             self.senseAI = SenseAI(self.dll_path)
             self.dll_loaded = True
+            self.quick_recon_func = quick_recon
+            self.quick_recon_single_func = quick_recon_single
             logging.info(f"SenseAI module loaded successfully from {self.dll_path}")
             
         except Exception as e:
@@ -110,7 +133,7 @@ class SenseAI_ModuleControl():
     def add_ScanGenerator(self, scanGen_config: dict) -> None:
         """Add a scan generator with the given name and configuration."""
         try:
-            self.senseAI.hw.add_scan_generator(self.scanGen_name, "QDMock", scanGen_config)
+            self.senseAI.hw.add_scan_generator(self.scanGen_name, "QD", scanGen_config)
             self.scanGen_added = True
             logging.info(f"Scan generator {self.scanGen_name} added successfully")
         except Exception as e:
@@ -128,8 +151,16 @@ class SenseAI_ModuleControl():
     def update_ScanGenerator(self, scanGen_config: dict) -> None:
         """Update the scan generator with the given name and configuration."""
         try:
+            current_dir = os.getcwd()
+            os.chdir(r"C:\Program Files\SenseAI\SenseAI 2026.1.1")
+
             self.senseAI.hw.update_scan_generator(self.scanGen_name, scanGen_config)
             logging.info(f"Scan generator {self.scanGen_name} updated successfully")
+
+            os.chdir(current_dir)
+           
+
+
         except Exception as e:
             logging.error(f"Error updating scan generator: {e}")
 
@@ -147,8 +178,16 @@ class SenseAI_ModuleControl():
         
 
         try:
+            
+             ## try work-around
+            current_dir = os.getcwd()
+            os.chdir(r"C:\Program Files\SenseAI\SenseAI 2026.1.1")
+
             self.senseAI.hw.init_scan_generator(self.scanGen_name)
             logging.info(f"Scan generator {self.scanGen_name} initialized successfully")
+            self.scanGen_added = True
+
+            os.chdir(current_dir)
         except Exception as e:
             logging.error(f"Error initializing scan generator: {e}")
 
@@ -163,14 +202,40 @@ class SenseAI_ModuleControl():
                 Image as a numpy array, or None if there was an error.
 
             """
+        
+        if not self.scanGen_added:
+            logging.error("Scan Gen not initialised")
+            return None
+
         try:
+
             image = self.senseAI.hw.get_detector_image(self.detector_name)
+            img = image[0]
+
             logging.info(f"Image acquired from detector {self.detector_name} successfully")
-            print(f"Image shape: {image[0].shape}")
             return image
         except Exception as e:
             logging.error(f"Error getting image from detector: {e}")
             return None
+        
+    def quick_recon_single(self,image:np.ndarray, mask:np.ndarray):
+
+        ## add image if not already done so
+
+        self.senseAI.add_image("img01",image=image,mask=mask)
+
+        dict_name, train, recon = self.quick_recon_func(self.senseAI, image="img01", patch_shape=[10, 10, 1, 1], dict_size=36, dict_kwargs={"OnesElement": True})
+
+
+        for i in range(10):
+
+
+            recon1 = self.senseAI.get_image_buffer("img01", "Reconstruction")
+            time.sleep(0.5)
+
+        
+        
+        return recon1
 
 
 
@@ -243,7 +308,7 @@ class SIM_HW_Interface():
         else:
             logging.error(f"Scan generator {name} not found, cannot initialize")
 
-    def get_detector_image(self, name: str) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray] | None:
+    def get_detector_image(self, name: str) -> tuple[np.ndarray, np.ndarray] | None:
         """
         Get an image from the detector with the given name.
         If the detector is not found, return None.
@@ -255,9 +320,9 @@ class SIM_HW_Interface():
             List containing the simulated image and mask as 2D numpy arrays, or None if the detector is not found.
 
         """
-        logging.info(f"Getting image from detector {name}")
+        logging.info(f"Getting image from detector {name} SIMULATED ")
         if self.detector is not None and self.detector["Name"] == name:
-            logging.info(f"Getting image from detector {name} with config {self.detector['Config']}")
+            logging.info(f"Getting image from detector {name} with config {self.detector['Config']} SIMULATED")
             # return a simulated image based on the config
             scan_size = self.scanGenerator["Config"]["ScanSize"]
 
@@ -265,13 +330,12 @@ class SIM_HW_Interface():
 
             image = np.random.randint(0, 256, (scan_size[1], scan_size[0]), dtype=np.uint8)
 
-            recon = np.random.randint(0, 256, (scan_size[1], scan_size[0]), dtype=np.uint8)
 
             sampling = self.scanGenerator["Config"]["Sampling"]
 
             image, mask = self._zero_random_pixels(image, sampling)
 
-            return [image, mask, recon, recon]
+            return [image, mask]
         else:
             logging.error(f"Detector {name} not found, cannot get image")
             return None
