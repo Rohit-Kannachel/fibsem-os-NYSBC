@@ -244,7 +244,6 @@ class FibsemImageSettingsWidget(ImageSettingsWidgetUI.Ui_Form, QtWidgets.QWidget
 
         self._update_layer_positions()
         self.restore_active_layer_for_movement()
-        print(f"emitting viewer update signal")
         self.viewer_update_signal.emit()
         self.update_ui_tools()
 
@@ -786,7 +785,6 @@ class FibsemImageSettingsWidget(ImageSettingsWidgetUI.Ui_Form, QtWidgets.QWidget
     def update_ui_tools(self):
         """Redraw the ui tools (scalebar, crosshair)"""
 
-        print(f"self eb image {self.eb_image}  self ib image {self.ib_image}")
 
         # draw scalebar and crosshair
         if self.eb_image is not None and self.ib_image is not None:

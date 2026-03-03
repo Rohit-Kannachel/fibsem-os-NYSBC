@@ -21,13 +21,15 @@ class SenseAI_Config():
         self.detector_config: dict = None
         self.scanGen_initialised: bool = False
 
-        self.load_config_information(self.senseAI_WorkspaceJSON_path)
+
+        if senseAI_WorkspaceJSON_path is not None:
+            self.load_config_information(self.senseAI_WorkspaceJSON_path)
 
 
     def load_config_information(self, json_path: str = None):
 
         ## load the config from the json into python dicts
-        if json_path is None:
+        if not json_path:
 
             logging.info("No config path provided, using default values")
             
@@ -40,11 +42,14 @@ class SenseAI_Config():
                 "Pattern": "Linehop",
                 "Sampling": 0.3,
                 "ResetBuffer": True,
+                "Name": "WCScanGen"
             }
 
             self.detector_config =  {
             "Input": 0,
-            "QDType": "qd_analogue"
+            "QDType": "qd_analogue",
+            "Name":"WCDetector"
+
             }
         
             return
@@ -106,8 +111,10 @@ class SenseAI_ModuleControl():
             logging.info("No config provided, using default values")
             self.config = SenseAI_Config()
 
-        self.add_ScanGenerator(self.config.scanGen_config)
-        self.add_Detector(self.config.detector_config)
+
+        if self.config is not None:
+            self.add_ScanGenerator(self.config.scanGen_config)
+            self.add_Detector(self.config.detector_config)
 
     
     def load_dll(self):
@@ -132,19 +139,35 @@ class SenseAI_ModuleControl():
 
     def add_ScanGenerator(self, scanGen_config: dict) -> None:
         """Add a scan generator with the given name and configuration."""
+
+        name = scanGen_config["Name"]
+        scangen_type = "QD"
+
+        if name is not None:
+            if "WC" in name:
+                scangen_type = "QDMock"
+            self.scanGen_name = name
+
         try:
-            self.senseAI.hw.add_scan_generator(self.scanGen_name, "QD", scanGen_config)
+            self.senseAI.hw.add_scan_generator(self.scanGen_name, scangen_type, scanGen_config)
             self.scanGen_added = True
-            logging.info(f"Scan generator {self.scanGen_name} added successfully")
+            logging.info(f"Scan generator {self.scanGen_name} of type {scangen_type} added successfully")
         except Exception as e:
             logging.error(f"Error adding scan generator: {e}")
 
+
     def add_Detector(self, detector_config: dict) -> None:
         """Add a detector with the given name and configuration."""
+
+        name = detector_config["Name"]
+
+        if name is not None:
+            self.detector_name = name
+
         try:
             self.senseAI.hw.add_detector(self.detector_name, "ScanGenerator", self.scanGen_name, detector_config)
             self.detector_added = True
-            logging.info(f"Detector {self.detector_name} added successfully")
+            logging.info(f"Detector {self.detector_name} added to Scan Gen {self.scanGen_name} successfully")
         except Exception as e:
             logging.error(f"Error adding detector: {e}")
 
@@ -187,6 +210,10 @@ class SenseAI_ModuleControl():
             logging.info(f"Scan generator {self.scanGen_name} initialized successfully")
             self.scanGen_added = True
 
+            ### running this method starts the scan on the scan engine
+            ### pause the scanning so it is not scanning unnecessarily? (either way the beam is not scanning)
+            self.senseAI.hw.set_scan_generator_state(self.scanGen_name,paused=True)
+
             os.chdir(current_dir)
         except Exception as e:
             logging.error(f"Error initializing scan generator: {e}")
@@ -202,7 +229,7 @@ class SenseAI_ModuleControl():
                 Image as a numpy array, or None if there was an error.
 
             """
-        
+        #TODO: Deprecate this method
         if not self.scanGen_added:
             logging.error("Scan Gen not initialised")
             return None
@@ -217,6 +244,50 @@ class SenseAI_ModuleControl():
         except Exception as e:
             logging.error(f"Error getting image from detector: {e}")
             return None
+        
+    def acquire_image(self) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Acquire a full image with the current scan generator settings
+        Different from get detector image.
+        This method blocks the thread while waiting for the scan generator to complete scan
+        Pauses the scanning once done (meaning get detector might return nothing?)
+        
+        Args: 
+            None
+
+        Returns: 
+            Tuple with Image array and Corresponding Mask
+            output[0] = Image (np.ndarray) (uint16)
+            output[1] = Mask (np.ndarray)
+
+        """
+        if not self.scanGen_added:
+            logging.error("Scan Generator not Initialised")
+            return None
+        
+
+
+        try:
+
+            # Wait for the scan gen
+            self.senseAI.hw.wait_for_scan_gen_frame(self.scanGen_name)
+
+            # set scan gen to start scanning
+            self.senseAI.hw.set_scan_generator_state(self.scanGen_name,paused=False)
+            logging.info(f"Scan Generator {self.scanGen_name} scanning: Waiting for frame...")
+            self.senseAI.hw.wait_for_scan_gen_frame(self.scanGen_name)
+            output = self.senseAI.hw.get_detector_image(self.detector_name)
+            logging.info(f"Frame Received from detector {self.detector_name}: Pausing Scan")
+            self.senseAI.hw.set_scan_generator_state(self.scanGen_name,paused=True)
+
+            # print(f"img data: {output[0].dtype} {np.unique(output[0])}")
+
+            return output
+
+        except Exception as e:
+            logging.error(f"Error With Image Acquisition: {e}")
+            return None
+
         
     def quick_recon_single(self,image:np.ndarray, mask:np.ndarray):
 

@@ -11,6 +11,7 @@ import numpy as np
 import time
 import logging
 from fibsem.config import DEFAULT_SENSEAI_DLL, DEFAULT_SENSEAI_CONFIG
+from napari.qt.threading import thread_worker
 
 
 
@@ -36,7 +37,7 @@ class SenseAIControlWidget(SenseAIControlWidgetUI.Ui_Form, QtWidgets.QWidget):
         self.viewer = parent.viewer
         self.scan_gen_initialized = False
         self.senseAI: SenseAI_ModuleControl = None
-        self.senseAI_config: SenseAI_Config = None
+        self.senseAI_config = SenseAI_Config()
 
         self.senseAI_img: np.ndarray = None
         self.senseAI_mask: np.ndarray = None
@@ -111,11 +112,19 @@ class SenseAIControlWidget(SenseAIControlWidgetUI.Ui_Form, QtWidgets.QWidget):
         self.dll_path = self.lineEdit_dllPath.text()
         self.config_path = self.lineEdit_ConfigPath.text()
 
+        try:
+            logging.info("Loading SenseAI config...")
+            self.senseAI_config.load_config_information(self.config_path)
+            logging.info("SenseAI config loaded successfully")
+        except Exception as e:
+            logging.error(f"Error loading SenseAI config: {e}")
+            napari.utils.notifications.show_error(f"Error loading SenseAI config: {e}")
+            return
 
         try:
             logging.info("Loading SenseAI Module Control...")
-            self.senseAI = SenseAI_ModuleControl(dll_path=self.dll_path)
-            self.senseAI_config = self.senseAI.config
+            self.senseAI = SenseAI_ModuleControl(dll_path=self.dll_path,config=self.senseAI_config)
+            # self.senseAI_config = self.senseAI.config
 
 
             logging.info("SenseAI Module Control loaded successfully")
@@ -125,14 +134,6 @@ class SenseAIControlWidget(SenseAIControlWidgetUI.Ui_Form, QtWidgets.QWidget):
             napari.utils.notifications.show_error(f"Error loading SenseAI Module Control: {e}")
             return
         
-        try:
-            logging.info("Loading SenseAI config...")
-            self.senseAI_config.load_config_information(self.config_path)
-            logging.info("SenseAI config loaded successfully")
-        except Exception as e:
-            logging.error(f"Error loading SenseAI config: {e}")
-            napari.utils.notifications.show_error(f"Error loading SenseAI config: {e}")
-            return
         
 
         ## initialise the scan generator
@@ -207,22 +208,33 @@ class SenseAIControlWidget(SenseAIControlWidgetUI.Ui_Form, QtWidgets.QWidget):
 
     def acquire_image(self):
 
+        worker = self._acquire_image()
+        worker.finished.connect(self._acquisition_finished)
+        worker.start()
+
+    @thread_worker    
+    def _acquire_image(self):
+
         self.update_scan_generator()
 
-        print("Acquiring image...")
+        logging.info("Acquiring image...")
 
         try:
-            output = self.senseAI.get_detector_image()
+            output = self.senseAI.acquire_image()
             
 
         except Exception as e:
+            logging.info(f"Error Sending Acquire Command: {e}")
             
             return
         self.senseAI_img = output[0]
         self.senseAI_mask = output[1]
 
         self._update_eb_image_viewer(self.senseAI_img)
-        
+
+    def _acquisition_finished(self):
+        pass
+
 
 
     def reconstruct(self):
