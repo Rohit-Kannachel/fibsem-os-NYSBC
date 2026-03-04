@@ -117,8 +117,8 @@ class AutoLamellaTaskConfig(ABC):
     task_name: str = "" # unique name for identifying in multi-task workflows
     milling: Dict[str, FibsemMillingTaskConfig] = field(default_factory=dict)
     reference_imaging: ReferenceImageParameters = field(default_factory=ReferenceImageParameters)
-    model_checkpoint: Path = field(
-        default=Path("autolamella-waffle-20240107.pt"),
+    model_checkpoint: str = field(
+        default="autolamella-waffle-20240107.pt",
         metadata={"parameter": True, "help": "ML model checkpoint"}
     )
 
