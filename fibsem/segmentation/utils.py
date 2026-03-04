@@ -34,13 +34,21 @@ def decode_segmap(image, nc=5):
 
     # 0=background, 1=lamella, 2= needle
     label_colors = np.zeros((8, 3))
-    label_colors[1, :] = (255, 0, 0)
-    label_colors[2, :] = (0, 255, 0)
-    label_colors[3, :] = (0, 255, 255)
-    label_colors[4, :] = (255, 255, 0)    
-    label_colors[5, :] = (255, 0, 255)
-    label_colors[6, :] = (0, 0, 255)
-    label_colors[7, :] = (128, 0, 0) # TODO: convert this to use CLASS_COLORS
+    # label_colors[1, :] = (255, 0, 0)
+    # label_colors[2, :] = (0, 255, 0)
+    # label_colors[3, :] = (0, 255, 255)
+    # label_colors[4, :] = (255, 255, 0)    
+    # label_colors[5, :] = (255, 0, 255)
+    # label_colors[6, :] = (0, 0, 255)
+    # label_colors[7, :] = (128, 0, 0) # TODO: convert this to use CLASS_COLORS
+    label_colors[1,:] = CLASS_COLORS_RGB[1]
+    label_colors[2,:] = CLASS_COLORS_RGB[2]
+    label_colors[3,:] = CLASS_COLORS_RGB[3]
+    label_colors[4,:] = CLASS_COLORS_RGB[4]
+    label_colors[5,:] = CLASS_COLORS_RGB[5]
+    label_colors[6,:] = CLASS_COLORS_RGB[6]
+    
+    label_colors[7,:] = CLASS_COLORS_RGB[7]
 
     # pre-allocate r, g, b channels as zero
     r = np.zeros_like(image, dtype=np.uint8)
