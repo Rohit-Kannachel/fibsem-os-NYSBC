@@ -117,10 +117,15 @@ class AutoLamellaTaskConfig(ABC):
     task_name: str = "" # unique name for identifying in multi-task workflows
     milling: Dict[str, FibsemMillingTaskConfig] = field(default_factory=dict)
     reference_imaging: ReferenceImageParameters = field(default_factory=ReferenceImageParameters)
+    model_checkpoint: str = field(
+        default="autolamella-waffle-20240107.pt",
+        metadata={"parameter": True, "help": "ML model checkpoint"}
+    )
 
     @property
     def parameters(self) -> Tuple[str, ...]:
         core_params = [f.name for f in fields(AutoLamellaTaskConfig)]
+
         return tuple(
             f.name
             for f in fields(self)
@@ -139,7 +144,10 @@ class AutoLamellaTaskConfig(ABC):
         ddict["milling"] = {k: v.to_dict() for k, v in self.milling.items()}
         if self.reference_imaging is not None:
             ddict["reference_imaging"] = self.reference_imaging.to_dict()
+        ddict["model_checkpoint"] = self.model_checkpoint
+        
         return ddict
+        
 
     @classmethod
     def from_dict(cls, ddict: Dict[str, Any]) -> 'AutoLamellaTaskConfig':
@@ -163,6 +171,9 @@ class AutoLamellaTaskConfig(ABC):
             }
         if "reference_imaging" in ddict:
             kwargs["reference_imaging"] = ReferenceImageParameters.from_dict(ddict["reference_imaging"])
+
+        if "model_checkpoint" in ddict:
+            kwargs["model_checkpoint"] = ddict["model_checkpoint"]
 
         return cls(**kwargs)
 

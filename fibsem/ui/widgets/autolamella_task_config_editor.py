@@ -201,6 +201,9 @@ class AutoLamellaProtocolTaskConfigEditor(QWidget):
         self.milling_task_collapsible.addWidget(self.milling_task_editor)
 
 
+        self.label_model_checkpoint = QLabel("Model Checkpoint")
+        self.lineEdit_model_checkpoint = QLineEdit()
+
         self.task_params_collapsible = QCollapsible("Task Parameters", self)
         self.task_parameters_config_widget = AutoLamellaTaskParametersConfigWidget(parent=self)
         self.task_params_collapsible.addWidget(self.task_parameters_config_widget)
@@ -243,6 +246,9 @@ class AutoLamellaProtocolTaskConfigEditor(QWidget):
         self.grid_layout.addWidget(self.comboBox_selected_task, 3, 1)
         self.grid_layout.addLayout(self.button_layout, 4, 0, 1, 2)
         self.grid_layout.addWidget(self.label_warning, 6, 0, 1, 2)
+        self.grid_layout.addWidget(self.label_model_checkpoint, 7,0)
+        self.grid_layout.addWidget(self.lineEdit_model_checkpoint,7,1)
+
         # self.grid_layout.setColumnStretch(0, 1)  # Labels column - expandable
         # self.grid_layout.setColumnStretch(1, 1)  # Input widgets column - expandable
 
@@ -275,6 +281,7 @@ class AutoLamellaProtocolTaskConfigEditor(QWidget):
         self.lineEdit_protocol_name.editingFinished.connect(self._on_protocol_name_changed)
         self.lineEdit_protocol_description.editingFinished.connect(self._on_protocol_description_changed)
         self.lineEdit_protocol_version.editingFinished.connect(self._on_protocol_version_changed)
+        self.lineEdit_model_checkpoint.editingFinished.connect(self._on_model_checkpoint_changed)
         
         if cfg.FEATURE_RIGHT_CLICK_CONTEXT_MENU_ENABLED:
             self.viewer.mouse_drag_callbacks.append(self._on_single_click)
@@ -289,6 +296,7 @@ class AutoLamellaProtocolTaskConfigEditor(QWidget):
         self.lineEdit_protocol_name.blockSignals(True)
         self.lineEdit_protocol_description.blockSignals(True)
         self.lineEdit_protocol_version.blockSignals(True)
+        self.lineEdit_model_checkpoint.blockSignals(True)
 
         self.lineEdit_protocol_name.setText(self.experiment.task_protocol.name or "")
         self.lineEdit_protocol_description.setText(self.experiment.task_protocol.description or "")
@@ -315,12 +323,23 @@ class AutoLamellaProtocolTaskConfigEditor(QWidget):
             self.comboBox_selected_task.setCurrentIndex(0)
         self.comboBox_selected_task.blockSignals(False)
 
+        self.lineEdit_model_checkpoint.blockSignals(True)
+                                                    
+        selected_task_name = self.comboBox_selected_task.currentText()
+        current_task_config = self.experiment.task_protocol.task_config[selected_task_name]
+        self.lineEdit_model_checkpoint.setText(current_task_config.model_checkpoint)
+
+        self.lineEdit_model_checkpoint.blockSignals(False)
+
 
     def _on_selected_task_changed(self):
         """Callback when the selected milling stage changes."""
         selected_stage_name = self.comboBox_selected_task.currentText()
 
         task_config = self.experiment.task_protocol.task_config[selected_stage_name]
+
+        self.lineEdit_model_checkpoint.setText(task_config.model_checkpoint)
+
         self.task_parameters_config_widget.set_task_config(task_config)
         self.ref_image_params_widget.update_from_settings(task_config.reference_imaging)
 
@@ -566,6 +585,28 @@ class AutoLamellaProtocolTaskConfigEditor(QWidget):
             self.experiment.task_protocol.version = text
             self._save_experiment()
             logging.info(f"Updated protocol version: {text}")
+
+    def _on_model_checkpoint_changed(self):
+        """Callback when the model checkpoint for the task editing is finished"""
+        text = self.lineEdit_model_checkpoint.text()
+        selected_task_name = self.comboBox_selected_task.currentText()
+
+        current_task_config = self.experiment.task_protocol.task_config[selected_task_name]
+
+        if ".pt" not in text and ".onnx" not in text:
+            ## add error checking
+            napari.utils.notifications.show_warning("Invalid Model type, model must be .pt (Pytorch) or .onnx (onnx)")
+            self.lineEdit_model_checkpoint.setText(current_task_config.model_checkpoint)
+            return
+
+        if self.experiment and self.experiment.task_protocol.task_config:
+            
+            task_name = current_task_config.task_name
+
+            current_task_config.model_checkpoint = text
+
+            self._save_experiment()
+            logging.info(f"Updated model checkpoint for Task {task_name} to {text} ")
 
     def _on_sync_to_lamella_clicked(self):
         """Sync the current task configuration to all existing lamella."""
