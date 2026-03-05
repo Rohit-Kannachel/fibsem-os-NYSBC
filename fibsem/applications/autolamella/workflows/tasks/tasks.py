@@ -38,6 +38,9 @@ from fibsem.applications.autolamella.protocol.constants import (
     TRENCH_KEY,
     UNDERCUT_KEY,
     STRESS_RELIEF_KEY,
+    LANDING_SITE_KEY,
+    REMOVE_BLOCK_KEY,
+    SLICE_BLOCK_KEY,
 )
 from fibsem.applications.autolamella.structures import (
     AutoLamellaTaskConfig,
@@ -282,6 +285,40 @@ class BasicMillingTaskConfig(AutoLamellaTaskConfig):
     def __post_init__(self):
         if self.milling == {}:
             self.milling = deepcopy({"milling": DEFAULT_MILLING_CONFIG[TRENCH_KEY]})
+
+@dataclass
+class MillLandingSiteTaskConfig(AutoLamellaTaskConfig):
+
+    """Configuration for the MillLandingSiteTask."""
+    task_type: ClassVar[str] = "LIFTOUT_MILL_LANDING_SITE"
+    display_name: ClassVar[str] = "Mill Landing Site"
+
+    def __post_init__(self):
+        if self.milling == {}:
+            self.milling = deepcopy({"milling": DEFAULT_MILLING_CONFIG[LANDING_SITE_KEY]})
+
+
+@dataclass
+class LiftoutBlockTaskConfig(AutoLamellaTaskConfig):
+    """Configuration for the LiftoutBlockTask."""
+    task_type: ClassVar[str] = "LIFTOUT_BLOCK_MILLING"
+    display_name: ClassVar[str] = "Mill Block for Liftout"
+
+    def __post_init__(self):
+        if self.milling == {}:
+            self.milling = deepcopy({"milling": DEFAULT_MILLING_CONFIG[REMOVE_BLOCK_KEY]})
+
+@dataclass
+class LandBlockTaskConfig(AutoLamellaTaskConfig):
+    """Configuration for the LandBlockTask."""
+    task_type: ClassVar[str] = "LIFTOUT_LAND_BLOCK"
+    display_name: ClassVar[str] = "Land Block"
+
+    def __post_init__(self):
+        if self.milling == {}:
+            self.milling = deepcopy({"milling": DEFAULT_MILLING_CONFIG[SLICE_BLOCK_KEY]})
+
+
 
 
 class AutoLamellaTask(ABC):
@@ -1356,6 +1393,20 @@ class BasicMillingTask(AutoLamellaTask):
 
         self.log_status_message("ACQUIRE_REFERENCE_IMAGES", "Acquiring Reference Images...")
         self._acquire_set_of_reference_images(image_settings)
+
+
+class MillLandingSiteTask(AutoLamellaTask):
+    """Task to mill the landing site for a lamella."""
+    config: MillLandingSiteTaskConfig
+    config_cls: ClassVar[Type[MillLandingSiteTaskConfig]] = MillLandingSiteTaskConfig
+
+    # TODO: Implement this task and change references from lamella to landing site where appropriate
+    # probably the easiest way to do this
+    # includes: move_to_milling_pose: This should change to landing site from experiment?
+    # logging: where ever it says lamella.etc change to get info or do something else?
+
+    def _run(self) -> None:
+        """Run the task to mill the landing site for a lamella."""
 
 
 def get_task_supervision(task_name: str, 

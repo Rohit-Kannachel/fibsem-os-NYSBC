@@ -201,6 +201,8 @@ class AutoLamellaProtocolTaskConfigEditor(QWidget):
         self.milling_task_collapsible.addWidget(self.milling_task_editor)
 
 
+        # in protocol editor, task parameters are loaded here
+
         self.label_model_checkpoint = QLabel("Model Checkpoint")
         self.lineEdit_model_checkpoint = QLineEdit()
 

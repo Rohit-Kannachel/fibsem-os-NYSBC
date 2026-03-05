@@ -842,6 +842,7 @@ class AutoLamellaUI(AutoLamellaMainUI.Ui_MainWindow, QMainWindow):
         workflow_accepted, selected_tasks, selected_lamella = open_task_selection_dialog(lamella_names=lamella_names, 
                                                                                          task_names=tasks_names, 
                                                                                          parent_ui=self)
+        
         if not workflow_accepted:
             logging.info("User cancelled workflow selection.")
             return

@@ -7,6 +7,9 @@ from fibsem.applications.autolamella.protocol.constants import (
     MILL_ROUGH_KEY,
     TRENCH_KEY,
     UNDERCUT_KEY,
+    LANDING_SITE_KEY,
+    REMOVE_BLOCK_KEY,
+    SLICE_BLOCK_KEY,
 )
 from fibsem.milling import FibsemMillingStage
 from fibsem.milling.patterning.patterns2 import (
@@ -123,3 +126,18 @@ DEFAULT_MILLING_CONFIG[MILL_POLISHING_KEY] = FibsemMillingTaskConfig(
         )
     ],
 )
+
+
+
+DEFAULT_MILLING_CONFIG[REMOVE_BLOCK_KEY] = FibsemMillingTaskConfig(
+    name="Remove Block Milling",
+    field_of_view=500e-6,
+    stages=[
+        FibsemMillingStage(
+            name="Remove Block Milling 01",
+            milling=FibsemMillingSettings(milling_current=7.6e-9),
+            pattern=RectanglePattern(width=15e-6, height=70e-6, depth=1.25e-6),
+        )
+    ],
+)
+

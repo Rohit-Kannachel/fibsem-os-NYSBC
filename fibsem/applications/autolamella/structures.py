@@ -121,6 +121,10 @@ class AutoLamellaTaskConfig(ABC):
         default="autolamella-waffle-20240107.pt",
         metadata={"parameter": True, "help": "ML model checkpoint"}
     )
+    for_liftout: bool = field(
+        default=False,
+        metadata={"parameter": True, "help": "Indicates if the task is for liftout"}
+    )
 
     @property
     def parameters(self) -> Tuple[str, ...]:
@@ -145,7 +149,7 @@ class AutoLamellaTaskConfig(ABC):
         if self.reference_imaging is not None:
             ddict["reference_imaging"] = self.reference_imaging.to_dict()
         ddict["model_checkpoint"] = self.model_checkpoint
-        
+        ddict["for_liftout"] = self.for_liftout
         return ddict
         
 
@@ -174,6 +178,9 @@ class AutoLamellaTaskConfig(ABC):
 
         if "model_checkpoint" in ddict:
             kwargs["model_checkpoint"] = ddict["model_checkpoint"]
+
+        if "for_liftout" in ddict:
+            kwargs["for_liftout"] = ddict["for_liftout"]
 
         return cls(**kwargs)
 

@@ -11,6 +11,9 @@ LIFTOUT_KEY = "liftout"
 LANDING_KEY = "landing"
 RESET_KEY = "reset"
 STRESS_RELIEF_KEY = "stress-relief"
+LANDING_SITE_KEY = "landing_site"
+REMOVE_BLOCK_KEY = "remove_block"
+SLICE_BLOCK_KEY = "slice_block"
 
 # milling
 MILLING_KEYS = [
