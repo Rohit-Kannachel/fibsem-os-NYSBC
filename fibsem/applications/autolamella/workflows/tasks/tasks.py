@@ -673,8 +673,11 @@ class MillTrenchTask(AutoLamellaTask):
         image_settings.path = self.lamella.path
 
         self.log_status_message("MOVE_TO_TRENCH", "Moving to Trench Position...")
+
         trench_position = self.microscope.get_target_position(self.lamella.stage_position, 
                                                               self.config.orientation)
+        
+
         self.microscope.safe_absolute_stage_movement(trench_position)
 
         # align to reference image
@@ -835,6 +838,10 @@ class MillUndercutTask(AutoLamellaTask):
 
         self.lamella.milling_pose = self.microscope.get_microscope_state()
 
+        ## update orientation? #TODO: Test this rigorously, make sure it works as expected
+        # self.microscope.
+        # self.microscope._stage
+
 
 class MillRoughTask(AutoLamellaTask):
     """Task to mill the rough trench for a lamella."""
@@ -982,13 +989,36 @@ class MillPolishingTask(AutoLamellaTask):
         #     dx=det.features[0].feature_m.x,
         #     dy=det.features[0].feature_m.y,
         # )
-
+        checkpoint = r"C:\Users\Admin\Documents\fibsem_data\ml_models\lamella_only\model-20260219-35.pt"
 
         # mill polishing 
         self.log_status_message("MILL_LAMELLA", "Milling Polishing Lamella...")
         milling_task_config = self.config.milling[MILL_POLISHING_KEY]
         milling_task_config.alignment.rect = self.lamella.alignment_area
         milling_task_config.acquisition.imaging.path = self.lamella.path
+
+
+        features = [LamellaCentre()]
+
+        det = update_detection_ui(microscope=self.microscope, 
+                                    image_settings=image_settings, 
+                                    checkpoint=checkpoint, 
+                                    features=features, 
+                                    parent_ui=self.parent_ui, 
+                                    validate=self.validate, 
+                                    msg=self.lamella.status_info)
+
+        offset_point = det.features[0].feature_m
+
+        for stage in milling_task_config.stages:
+            stage.pattern.point.x += offset_point.x
+            stage.pattern.point.y += offset_point.y
+
+        # set pattern position
+        # offset = milling_task_config.stages[0].pattern.height / 2
+        # point = deepcopy(det.features[0].feature_m)
+        # point.y += offset if np.isclose(scan_rotation, 0) else -offset
+        # milling_task_config.stages[0].pattern.point = point
 
         msg = f"Press Run Milling to mill the polishing for {self.lamella.name}. Press Continue when done."
         milling_task_config = self.update_milling_config_ui(milling_task_config, msg=msg)
@@ -1151,13 +1181,18 @@ class SetupLamellaTask(AutoLamellaTask):
         self._move_to_milling_pose()
 
 
-        if not is_close and self.validate:
-            current_milling_angle = self.microscope.get_current_milling_angle()
-            ret = ask_user(parent_ui=self.parent_ui,
-                        msg=f"Tilt to specified milling angle ({milling_angle:.1f} {constants.DEGREE_SYMBOL})? "
-                        f"Current milling angle is {current_milling_angle:.1f} {constants.DEGREE_SYMBOL}.",
-                        pos="Tilt", neg="Skip")
-            if ret:
+        if not is_close:
+            
+            if self.validate:
+
+                current_milling_angle = self.microscope.get_current_milling_angle()
+                ret = ask_user(parent_ui=self.parent_ui,
+                            msg=f"Tilt to specified milling angle ({milling_angle:.1f} {constants.DEGREE_SYMBOL})? "
+                            f"Current milling angle is {current_milling_angle:.1f} {constants.DEGREE_SYMBOL}.",
+                            pos="Tilt", neg="Skip")
+                if ret:
+                    self.microscope.move_to_milling_angle(milling_angle=np.radians(milling_angle))
+            else:
                 self.microscope.move_to_milling_angle(milling_angle=np.radians(milling_angle))
 
         checkpoint = r"C:\Users\Admin\Documents\fibsem_data\ml_models\lamella_and_trench\model-20260127-37.pt"
