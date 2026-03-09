@@ -121,10 +121,7 @@ class AutoLamellaTaskConfig(ABC):
         default="autolamella-waffle-20240107.pt",
         metadata={"parameter": True, "help": "ML model checkpoint"}
     )
-    for_liftout: bool = field(
-        default=False,
-        metadata={"parameter": True, "help": "Indicates if the task is for liftout"}
-    )
+
 
     @property
     def parameters(self) -> Tuple[str, ...]:
@@ -149,7 +146,6 @@ class AutoLamellaTaskConfig(ABC):
         if self.reference_imaging is not None:
             ddict["reference_imaging"] = self.reference_imaging.to_dict()
         ddict["model_checkpoint"] = self.model_checkpoint
-        ddict["for_liftout"] = self.for_liftout
         return ddict
         
 
@@ -179,8 +175,6 @@ class AutoLamellaTaskConfig(ABC):
         if "model_checkpoint" in ddict:
             kwargs["model_checkpoint"] = ddict["model_checkpoint"]
 
-        if "for_liftout" in ddict:
-            kwargs["for_liftout"] = ddict["for_liftout"]
 
         return cls(**kwargs)
 
@@ -560,6 +554,7 @@ class Lamella:
     objective_position: Optional[float] = None  # TODO: deprecate, use poses instead
     milling_angle: Optional[float] = None
     poi: Point = field(default_factory=lambda: Point(0,0))  # point of interest within lamella area (milling coordinate system)
+    is_liftout_block: bool = False # whether this lamella is intended for liftout, used to determine which tasks to run in liftout protocols
 
     def __post_init__(self):
         # only make the dir, if the base path is actually set, 
@@ -668,6 +663,7 @@ class Lamella:
             "objective_position": self.objective_position,
             "milling_angle": self.milling_angle,
             "poi": self.poi.to_dict(),
+            "is_liftout_block": self.is_liftout_block,
         }
 
     @property
@@ -687,6 +683,7 @@ class Lamella:
             objective_str = f"{self.objective_position * 1e3:.3f}mm"
 
         return f"{self.name} ({self.stage_position.x * 1e6:.1f}μm, {self.stage_position.y * 1e6:.1f}μm, {objective_str})"
+
 
     @classmethod
     def from_dict(cls, data: dict) -> 'Lamella':
@@ -710,6 +707,7 @@ class Lamella:
             objective_position=data.get("objective_position", None),
             milling_angle=data.get("milling_angle", None),
             poi=Point.from_dict(data.get("poi", {"x":0,"y":0})),
+            is_liftout_block=data.get("is_liftout_block", False),
         )
 
     def load_reference_image(self, fname) -> FibsemImage:

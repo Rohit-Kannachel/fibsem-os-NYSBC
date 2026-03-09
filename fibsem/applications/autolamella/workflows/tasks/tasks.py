@@ -118,6 +118,11 @@ class MillTrenchTaskConfig(AutoLamellaTaskConfig):
         default="FIB",
         metadata={"help": "The orientation to perform trench milling in"},
     )
+    for_liftout: bool = field(
+        default=False,
+        metadata={"help": "Whether the trench is being milled for a liftout protocol. Enabling this flag means this will run only for the lamella marked as for liftout block."},
+    )
+
     task_type: ClassVar[str] = "MILL_TRENCH"
     display_name: ClassVar[str] = "Trench Milling"
 
@@ -138,6 +143,11 @@ class MillUndercutTaskConfig(AutoLamellaTaskConfig):
         metadata={"help": "The angles to mill the undercuts at", 
                   "units": constants.DEGREE_SYMBOL},
     )
+    for_liftout: bool = field(
+        default=False,
+        metadata={"help": "Whether the undercut task is being performed for a liftout protocol. Enabling this flag means this will run only for the lamella marked as for liftout block."},
+    )
+
     task_type: ClassVar[str] = "MILL_UNDERCUT"
     display_name: ClassVar[str] = "Undercut Milling"
 
@@ -1558,7 +1568,24 @@ def run_tasks(microscope: FibsemMicroscope,
             #     logging.info("User exited before starting Rough Milling.")
             #     break
 
+        ### check to see if task is marked as for liftout
+        task_is_for_liftout = False
+
+        task_config = experiment.task_protocol.task_config[task_name]
+
+
+        if hasattr(task_config, "for_liftout"):
+            if task_config.for_liftout:
+                task_is_for_liftout = True
+        
+                
+
+
         for lamella in experiment.positions:
+
+            if not (lamella.is_liftout_block == task_is_for_liftout):
+                print(f"\n\n #################### task name: {task_name} for lamella {lamella.name} ################# \n\n")
+                continue
 
 
             if required_lamella and lamella.name not in required_lamella:

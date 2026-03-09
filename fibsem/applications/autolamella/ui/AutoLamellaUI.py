@@ -47,6 +47,7 @@ from fibsem.ui.widgets.autolamella_load_task_protocol_widget import load_task_pr
 from fibsem.ui.widgets.autolamella_task_config_editor import show_protocol_editor, AutoLamellaProtocolEditorTabWidget
 from fibsem.ui.widgets.autolamella_task_history_widget import AutoLamellaWorkflowDisplayWidget
 from fibsem.ui.widgets.autolamella_defect_state_widget import AutoLamellaDefectStateWidget
+from fibsem.ui.widgets.autolamella_liftout_options_widget import AutoLamellaLiftoutOptionsWidget
 from fibsem.ui.fm.widgets import MinimapPlotWidget
 from fibsem.applications.autolamella import config as cfg
 from fibsem.applications.autolamella.structures import (
@@ -302,6 +303,10 @@ class AutoLamellaUI(AutoLamellaMainUI.Ui_MainWindow, QMainWindow):
         self.lamella_defect_widget = AutoLamellaDefectStateWidget(parent=self)
         self.gridLayout_7.addWidget(self.lamella_defect_widget, rows, 0, 1, 2)
         self.lamella_defect_widget.defect_state_changed.connect(self._on_defect_state_changed)
+        self.liftout_options_widget = AutoLamellaLiftoutOptionsWidget(parent=self)
+        self.gridLayout_7.addWidget(self.liftout_options_widget, rows+1, 0, 1, 2)
+        self.liftout_options_widget.liftout_options_changed.connect(self._on_liftout_options_changed)
+
 
 ##########
 
@@ -843,6 +848,11 @@ class AutoLamellaUI(AutoLamellaMainUI.Ui_MainWindow, QMainWindow):
                                                                                          task_names=tasks_names, 
                                                                                          parent_ui=self)
         
+        ### over here, update the workflow config for the block lamella and other lamella??
+
+
+
+
         if not workflow_accepted:
             logging.info("User cancelled workflow selection.")
             return
@@ -1123,6 +1133,8 @@ class AutoLamellaUI(AutoLamellaMainUI.Ui_MainWindow, QMainWindow):
 
         # defect state
         self.lamella_defect_widget.set_defect_state(lamella.defect)
+        # Liftout block Status
+        self.liftout_options_widget.set_for_liftout(lamella.is_liftout_block)
 
         self._update_minimap_data(selected_name=lamella.name)
         self._update_lamella_display(selected_name=lamella.name)
@@ -1135,6 +1147,26 @@ class AutoLamellaUI(AutoLamellaMainUI.Ui_MainWindow, QMainWindow):
             return
         lamella = self.experiment.positions[idx]
         lamella.defect = defect
+        self.experiment.save()
+        self.update_ui()
+
+    def _on_liftout_options_changed(self, for_liftout: bool):
+
+
+        if self.experiment is None:
+            return
+        idx = self.comboBox_current_lamella.currentIndex()
+        if idx == -1:
+            return
+
+        # can only allow one lamella in experiment to be marked as liftout block
+        if for_liftout:
+            for pos in self.experiment.positions:
+                pos.is_liftout_block = False
+
+        
+        lamella = self.experiment.positions[idx]
+        lamella.is_liftout_block = for_liftout
         self.experiment.save()
         self.update_ui()
 
