@@ -118,9 +118,13 @@ class MillTrenchTaskConfig(AutoLamellaTaskConfig):
     task_type: ClassVar[str] = "MILL_TRENCH"
     display_name: ClassVar[str] = "Trench Milling"
 
+    
+
     def __post_init__(self):
         if self.milling == {}:
             self.milling = deepcopy({TRENCH_KEY: DEFAULT_MILLING_CONFIG[TRENCH_KEY]})
+
+        
 
 
 @dataclass
@@ -676,9 +680,30 @@ class MillTrenchTask(AutoLamellaTask):
 
         trench_position = self.microscope.get_target_position(self.lamella.stage_position, 
                                                               self.config.orientation)
+
+        print(f"\n\n ######  Lamella Stage Position: {self.lamella.stage_position} #########")
+
+        print(f"\n\n ######  trench position Position: {trench_position} #########")
+
+
         
 
         self.microscope.safe_absolute_stage_movement(trench_position)
+
+        if len(self.config.model_checkpoint) > 0:
+            ## align to lamella (coming from prev rotation)
+            # align feature coincident   
+            feature = LamellaCentre()
+            lamella = align_feature_coincident(
+                microscope=self.microscope,
+                image_settings=image_settings,
+                lamella=self.lamella,
+                checkpoint=self.config.model_checkpoint,
+                parent_ui=self.parent_ui,
+                validate=self.validate,
+                feature=feature,
+            )
+
 
         # align to reference image
         # TODO: support saving a reference image when selecting the trench from minimap
@@ -714,6 +739,8 @@ class MillTrenchTask(AutoLamellaTask):
             image_settings.beam_type = BeamType.ELECTRON
             calibration.auto_charge_neutralisation(self.microscope, image_settings)
 
+
+        self.lamella.stage_position = self.microscope.get_stage_position()
 
         # reference images
         self._acquire_set_of_reference_images(image_settings)

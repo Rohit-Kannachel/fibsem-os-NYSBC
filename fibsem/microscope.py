@@ -1159,22 +1159,22 @@ class FibsemMicroscope(ABC):
         is_sem_tilt = np.isclose(stage_tilt, sem.t, atol=0.1)
         is_fib_tilt = np.isclose(stage_tilt, fib.t, atol=0.1)
 
-        print(f" ###############   Getting current orientation for stage position: r={np.degrees(stage_rotation):.2f} deg, t={np.degrees(stage_tilt):.2f} deg \n\n")
+        # print(f" ###############   Getting current orientation for stage position: r={np.degrees(stage_rotation):.2f} deg, t={np.degrees(stage_tilt):.2f} deg \n\n")
 
-        print(f"################### is sem_rotation = {is_sem_rotation}, is fib_rotation = {is_fib_rotation} ####################")
+        # print(f"################### is sem_rotation = {is_sem_rotation}, is fib_rotation = {is_fib_rotation} ####################")
 
-        print(f"################### is sem_tilt = {is_sem_tilt}, is fib_tilt = {is_fib_tilt} ####################")
+        # print(f"################### is sem_tilt = {is_sem_tilt}, is fib_tilt = {is_fib_tilt} ####################")
 
-        print(f"#################### Stage rotation: {np.degrees(stage_rotation):.2f} deg, Stage tilt: {np.degrees(stage_tilt):.2f} deg ######################")
-        print(f" ###################### sem.t = {np.degrees(sem.t):.2f} deg, stage_tilt = {np.degrees(stage_tilt):.2f} deg ######################")
+        # print(f"#################### Stage rotation: {np.degrees(stage_rotation):.2f} deg, Stage tilt: {np.degrees(stage_tilt):.2f} deg ######################")
+        # print(f" ###################### sem.t = {np.degrees(sem.t):.2f} deg, stage_tilt = {np.degrees(stage_tilt):.2f} deg ######################")
 
         is_milling_tilt = np.radians(-45) < stage_tilt  < (sem.t + 12) 
 
-        print(f"################### is milling_tilt = {is_milling_tilt} ####################")
+        # print(f"################### is milling_tilt = {is_milling_tilt} ####################")
 
-        print(f"\n\n ############# is MILLING: {is_sem_rotation and is_milling_tilt} ############# \n\n")
-        print(f"\n\n ############# is SEM: {is_sem_rotation and is_sem_tilt} ############# \n\n")
-        print(f"\n\n ############# is FIB: {is_fib_rotation and is_fib_tilt} ############# \n\n")
+        # print(f"\n\n ############# is MILLING: {is_sem_rotation and is_milling_tilt} ############# \n\n")
+        # print(f"\n\n ############# is SEM: {is_sem_rotation and is_sem_tilt} ############# \n\n")
+        # print(f"\n\n ############# is FIB: {is_fib_rotation and is_fib_tilt} ############# \n\n")
 
         if is_sem_rotation and is_sem_tilt:
             return "SEM"
