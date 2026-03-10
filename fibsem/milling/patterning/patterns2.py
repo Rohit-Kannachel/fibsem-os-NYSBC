@@ -1632,6 +1632,199 @@ class WaffleNotchPattern(BasePattern[FibsemRectangleSettings]):
         return self.shapes
 
 
+
+@dataclass
+class CustomNotchPattern(BasePattern[FibsemRectangleSettings]):
+    topVheight: float = field(
+        default=2.0e-6,
+        metadata={
+            "label": "Vertical Height (Top)",
+            **DEFAULT_DISTANCE_METADATA,
+            "tooltip": "Height of the top vertical notch section.",
+        },
+    )
+    topVwidth: float = field(
+        default=0.5e-6,
+        metadata={
+            "label": "Vertical Width (Top)",
+            **DEFAULT_DISTANCE_METADATA,
+            "tooltip": "Width of the top vertical notch section.",
+        },
+    )
+    botVheight: float = field(
+        default=2.0e-6,
+        metadata={
+            "label": "Vertical Height (Bottom)",
+            **DEFAULT_DISTANCE_METADATA,
+            "tooltip": "Height of the bottom vertical notch section.",
+        },
+    )
+    botVwidth: float = field(
+        default=0.5e-6,
+        metadata={
+            "label": "Vertical Width (Bottom)",
+            **DEFAULT_DISTANCE_METADATA,
+            "tooltip": "Width of the bottom vertical notch section.",
+        },
+    )
+    topHheight: float = field(
+        default=0.5e-6,
+        metadata={
+            "label": "Horizontal Height (Top)",
+            **DEFAULT_DISTANCE_METADATA,
+            "tooltip": "Height of the top horizontal notch section.",
+        },
+    )
+    topHwidth: float = field(
+        default=2.0e-6,
+        metadata={
+            "label": "Horizontal Width (Top)",
+            **DEFAULT_DISTANCE_METADATA,
+            "tooltip": "Width of the top horizontal notch section.",
+        },
+    )
+    botHheight: float = field(
+        default=0.5e-6,
+        metadata={
+            "label": "Horizontal Height (Bottom)",
+            **DEFAULT_DISTANCE_METADATA,
+            "tooltip": "Height of the bottom horizontal notch section.",
+        },
+    )
+    botHwidth: float = field(
+        default=2.0e-6,
+        metadata={
+            "label": "Horizontal Width (Bottom)",
+            **DEFAULT_DISTANCE_METADATA,
+            "tooltip": "Width of the bottom horizontal notch section.",
+        },
+    )
+    mwidth: float = field(
+        default=0.5e-6,
+        metadata={
+            "label": "Middle Width",
+            **DEFAULT_DISTANCE_METADATA,
+            "tooltip": "Width of the middle notch section.",
+        },
+    )
+    mlocation: float = field(
+        default=2.0e-6,
+        metadata={
+            "label": "Middle Location",
+            **DEFAULT_DISTANCE_METADATA,
+            "tooltip": "Location of the middle notch section.",
+        },
+    )
+    depth: float = field(
+        default=1.0e-6,
+        metadata={
+            "label": "Depth",
+            **DEFAULT_DISTANCE_METADATA,
+            "tooltip": "Depth of the notch sections.",
+        },
+    )
+    distance: float = field(
+        default=2.0e-6,
+        metadata={
+            "label": "Distance",
+            **DEFAULT_DISTANCE_METADATA,
+            "tooltip": "Distance between notch sections.",
+        },
+    )
+    inverted: bool = field(
+        default=False,
+        metadata={
+            "label": "Inverted",
+            "tooltip": "Invert the notch pattern.",
+        },
+    )
+    cross_section: CrossSectionPattern = field(
+        default=CrossSectionPattern.Rectangle, metadata=DEFAULT_CROSS_SECTION_METADATA
+    )
+
+    name: ClassVar[str] = "CustomNotch"
+
+    def define(self) -> List[FibsemRectangleSettings]:
+
+        point = self.point
+        topVheight = self.topVheight
+        topVwidth = self.topVwidth
+        botVheight = self.botVheight
+        botVwidth = self.botVwidth
+        topHheight = self.topHheight
+        topHwidth = self.topHwidth
+        botHheight = self.botHheight
+        botHwidth = self.botHwidth
+        mwidth = self.mwidth
+        mlocation = self.mlocation
+        depth = self.depth
+        distance = self.distance
+        cross_section = self.cross_section
+        inverted = -1 if self.inverted else 1
+
+        # five patterns
+        top_vertical_pattern = FibsemRectangleSettings(
+            width=topVwidth,
+            height=topVheight,
+            depth=depth,
+            centre_x=point.x,
+            centre_y=point.y + distance / 2 + topVheight / 2,
+            scan_direction="TopToBottom",
+            cross_section=cross_section
+        )
+
+        bottom_vertical_pattern = FibsemRectangleSettings(
+            width=botVwidth,
+            height=botVheight,
+            depth=depth,
+            centre_x=point.x,
+            centre_y=point.y - distance / 2 - botVheight / 2,
+            scan_direction="BottomToTop",
+            cross_section=cross_section
+        )
+
+        top_horizontal_pattern = FibsemRectangleSettings(
+            width=topHwidth,
+            height=topHheight,
+            depth=depth,
+            centre_x=point.x + (topHwidth / 2) * inverted,
+            centre_y=point.y + distance / 2 + (topHheight / 2),
+            scan_direction="TopToBottom",
+            cross_section=cross_section
+        )
+
+        bottom_horizontal_pattern = FibsemRectangleSettings(
+            width=botHwidth,
+            height=botHheight,
+            depth=depth,
+            centre_x=point.x + (botHwidth / 2) * inverted,
+            centre_y=point.y - distance / 2 - (botHheight / 2),
+            scan_direction="BottomToTop",
+            cross_section=cross_section
+        )
+
+        centre_vertical_pattern = FibsemRectangleSettings(
+            width=mwidth,
+            height=distance,
+            depth=depth,
+            centre_x=point.x + (mlocation) * inverted,
+            centre_y=point.y,
+            scan_direction="TopToBottom",
+            cross_section=cross_section
+        )
+
+        self.shapes = [
+            top_vertical_pattern,
+            bottom_vertical_pattern,
+            top_horizontal_pattern,
+            bottom_horizontal_pattern,
+            centre_vertical_pattern,
+        ]
+
+        return self.shapes
+
+
+
 @dataclass
 class CloverPattern(BasePattern[Union[FibsemCircleSettings, FibsemRectangleSettings]]):
     radius: float = field(
