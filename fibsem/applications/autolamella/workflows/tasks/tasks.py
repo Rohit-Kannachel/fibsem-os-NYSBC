@@ -702,6 +702,7 @@ class MillTrenchTask(AutoLamellaTask):
                 parent_ui=self.parent_ui,
                 validate=self.validate,
                 feature=feature,
+                hfw=self.config.imaging.hfw
             )
 
 
@@ -770,6 +771,9 @@ class MillUndercutTask(AutoLamellaTask):
         self.microscope.safe_absolute_stage_movement(undercut_position)
         # TODO: support compucentric offset
 
+
+        print(f'\n\n #################### Imaging settings for undercut milling: {image_settings} #########################\n\n')
+
         # align feature coincident   
         feature = LamellaCentre()
         lamella = align_feature_coincident(
@@ -780,6 +784,7 @@ class MillUndercutTask(AutoLamellaTask):
             parent_ui=self.parent_ui,
             validate=self.validate,
             feature=feature,
+            hfw=self.config.imaging.hfw
         )
 
         # mill under cut
@@ -811,9 +816,30 @@ class MillUndercutTask(AutoLamellaTask):
 
             # get pattern
             scan_rotation = self.microscope.get_scan_rotation(beam_type=BeamType.ION)
+
+            # once tilted, realign to centre of lamella
+
+            
+
+            features = [LamellaCentre()]
+            det = update_detection_ui(microscope=self.microscope,
+                                        image_settings=image_settings,
+                                        checkpoint=checkpoint,
+                                        features=features,
+                                        parent_ui=self.parent_ui,
+                                        validate=self.validate,
+                                        msg=self.lamella.status_info)
+
+            # align vertical
+            self.microscope.vertical_move(
+                dx=det.features[0].feature_m.x,
+                dy=det.features[0].feature_m.y,
+            )
+
+
             features = [LamellaTopEdge() if np.isclose(scan_rotation, 0) else LamellaBottomEdge()]
 
-            det = update_detection_ui(microscope=self.microscope, 
+            edge_det = update_detection_ui(microscope=self.microscope, 
                                     image_settings=image_settings, 
                                     checkpoint=checkpoint, 
                                     features=features, 
@@ -827,7 +853,9 @@ class MillUndercutTask(AutoLamellaTask):
 
             # set pattern position
             offset = current_milling_config.stages[0].pattern.height / 2
-            point = deepcopy(det.features[0].feature_m)
+            offset += current_milling_config.stages[0].pattern.point.y 
+            point = deepcopy(edge_det.features[0].feature_m)
+            
             point.y += offset if np.isclose(scan_rotation, 0) else -offset
             current_milling_config.stages[0].pattern.point = point
 
