@@ -681,16 +681,14 @@ class MillTrenchTask(AutoLamellaTask):
         trench_position = self.microscope.get_target_position(self.lamella.stage_position, 
                                                               self.config.orientation)
 
-        print(f"\n\n ######  Lamella Stage Position: {self.lamella.stage_position} #########")
+        ## If there has been a rotational movement, we need to align feature coincident
 
-        print(f"\n\n ######  trench position Position: {trench_position} #########")
-
-
-        
+        has_rotated = not np.isclose(trench_position.r, self.lamella.stage_position.r, atol=1e-2)
 
         self.microscope.safe_absolute_stage_movement(trench_position)
 
-        if len(self.config.model_checkpoint) > 0:
+        if has_rotated:
+            logging.info(f"Rotation Movement Detected. Aligning to lamella centre to correct for any misalignment from rotation.")
             ## align to lamella (coming from prev rotation)
             # align feature coincident   
             feature = LamellaCentre()
@@ -772,7 +770,6 @@ class MillUndercutTask(AutoLamellaTask):
         # TODO: support compucentric offset
 
 
-        print(f'\n\n #################### Imaging settings for undercut milling: {image_settings} #########################\n\n')
 
         # align feature coincident   
         feature = LamellaCentre()
@@ -818,10 +815,10 @@ class MillUndercutTask(AutoLamellaTask):
             scan_rotation = self.microscope.get_scan_rotation(beam_type=BeamType.ION)
 
             # once tilted, realign to centre of lamella
-
+            lamella_edge = LamellaTopEdge() if np.isclose(scan_rotation, 0) else LamellaBottomEdge()
             
 
-            features = [LamellaCentre()]
+            features = [LamellaCentre(),lamella_edge]
             det = update_detection_ui(microscope=self.microscope,
                                         image_settings=image_settings,
                                         checkpoint=checkpoint,
@@ -837,24 +834,20 @@ class MillUndercutTask(AutoLamellaTask):
             )
 
 
-            features = [LamellaTopEdge() if np.isclose(scan_rotation, 0) else LamellaBottomEdge()]
+            
 
-            edge_det = update_detection_ui(microscope=self.microscope, 
-                                    image_settings=image_settings, 
-                                    checkpoint=checkpoint, 
-                                    features=features, 
-                                    parent_ui=self.parent_ui, 
-                                    validate=self.validate, 
-                                    msg=lamella.status_info)
+            lamella_mid_height = (det.features[1].feature_m.y - det.features[0].feature_m.y)
 
             # only want to run specific stage
             current_milling_config = deepcopy(milling_task_config)
             current_milling_config.stages = [deepcopy(milling_task_config.stages[i])]
 
             # set pattern position
-            offset = current_milling_config.stages[0].pattern.height / 2
-            offset += current_milling_config.stages[0].pattern.point.y 
-            point = deepcopy(edge_det.features[0].feature_m)
+            offset = current_milling_config.stages[0].pattern.height / 2 # pattern height
+            offset += current_milling_config.stages[0].pattern.point.y # pattern y point
+            offset += lamella_mid_height # add offset to middle of lamella height
+
+            point = deepcopy(det.features[0].feature_m)
             
             point.y += offset if np.isclose(scan_rotation, 0) else -offset
             current_milling_config.stages[0].pattern.point = point
