@@ -184,6 +184,10 @@ class SetupLamellaTaskConfig(AutoLamellaTaskConfig):
             "units": constants.DEGREE_SYMBOL,
         },
     )
+    orientation: str = field(
+        default="SEM",
+        metadata={"help": "The orientation to perform undercut milling in"},
+    )
     use_fiducial: bool = field(
         default=True,
         metadata={"help": "Whether to mill a fiducial marker for alignment"},
@@ -1042,7 +1046,7 @@ class MillPolishingTask(AutoLamellaTask):
         #     dx=det.features[0].feature_m.x,
         #     dy=det.features[0].feature_m.y,
         # )
-        checkpoint = r"C:\Users\Admin\Documents\fibsem_data\ml_models\lamella_only\model-20260219-35.pt"
+        checkpoint = self.config.model_checkpoint
 
         # mill polishing 
         self.log_status_message("MILL_LAMELLA", "Milling Polishing Lamella...")
@@ -1204,75 +1208,104 @@ class SetupLamellaTask(AutoLamellaTask):
         image_settings.path = self.lamella.path
 
         # move to lamella milling position
-        ### Figure out what this is and why it does this!
 
-        
-        # check if 
-        self.log_status_message("SELECT_POSITION", "Selecting Position...")
-        milling_angle = self.config.milling_angle
-        is_close = self.microscope.is_close_to_milling_angle(milling_angle=milling_angle)
+        if self.config.orientation == "FIB":
 
-
-        # when multiple lamella are being setup, the move to milling pose reverts back to its previous stage
-        # if the another lamella has moved the stage to the required angle, the next lamella will move the stage back
-        # and then move again to the required stage, this is unneccessary and can cause extra stage movement and time
-        # if the stage tilt is already at the milling angle, we can adjust the lamella milling pose tilt angle and the other coordinates can remain
-
-        if is_close:
-            current_tilt_angle = self.microscope.get_microscope_state().stage_position.t
-            self.lamella.milling_pose.stage_position.t = current_tilt_angle
-
-        self._move_to_milling_pose()
-
-
-        if not is_close:
+            # check if in the right orientation
+            setup_position = self.microscope.get_target_position(self.lamella.stage_position, 
+                                                                self.config.orientation)
             
-            if self.validate:
 
-                current_milling_angle = self.microscope.get_current_milling_angle()
-                ret = ask_user(parent_ui=self.parent_ui,
-                            msg=f"Tilt to specified milling angle ({milling_angle:.1f} {constants.DEGREE_SYMBOL})? "
-                            f"Current milling angle is {current_milling_angle:.1f} {constants.DEGREE_SYMBOL}.",
-                            pos="Tilt", neg="Skip")
-                if ret:
+            has_rotated = not np.isclose(setup_position.r, self.lamella.stage_position.r, atol=1e-2)
+
+            self.microscope.safe_absolute_stage_movement(setup_position)
+
+            if has_rotated:
+                logging.info(f"Rotation Movement Detected. Aligning to lamella centre to correct for any misalignment from rotation.")
+                ## align to lamella (coming from prev rotation)
+                # align feature coincident   
+                feature = LamellaCentre()
+                lamella = align_feature_coincident(
+                    microscope=self.microscope,
+                    image_settings=image_settings,
+                    lamella=self.lamella,
+                    checkpoint=self.config.model_checkpoint,
+                    parent_ui=self.parent_ui,
+                    validate=self.validate,
+                    feature=feature,
+                    hfw=self.config.imaging.hfw
+                )
+
+        else:
+                
+            # check if close to tilt angle
+            self.log_status_message("SELECT_POSITION", "Selecting Position...")
+            milling_angle = self.config.milling_angle
+            is_close = self.microscope.is_close_to_milling_angle(milling_angle=milling_angle)
+
+            
+
+
+            # when multiple lamella are being setup, the move to milling pose reverts back to its previous stage
+            # if the another lamella has moved the stage to the required angle, the next lamella will move the stage back
+            # and then move again to the required stage, this is unneccessary and can cause extra stage movement and time
+            # if the stage tilt is already at the milling angle, we can adjust the lamella milling pose tilt angle and the other coordinates can remain
+
+            if is_close:
+                current_tilt_angle = self.microscope.get_microscope_state().stage_position.t
+                self.lamella.milling_pose.stage_position.t = current_tilt_angle
+
+
+            
+
+            self._move_to_milling_pose()
+
+
+            if not is_close:
+                
+                if self.validate:
+
+                    current_milling_angle = self.microscope.get_current_milling_angle()
+                    ret = ask_user(parent_ui=self.parent_ui,
+                                msg=f"Tilt to specified milling angle ({milling_angle:.1f} {constants.DEGREE_SYMBOL})? "
+                                f"Current milling angle is {current_milling_angle:.1f} {constants.DEGREE_SYMBOL}.",
+                                pos="Tilt", neg="Skip")
+                    if ret:
+                        self.microscope.move_to_milling_angle(milling_angle=np.radians(milling_angle))
+                else:
                     self.microscope.move_to_milling_angle(milling_angle=np.radians(milling_angle))
-            else:
-                self.microscope.move_to_milling_angle(milling_angle=np.radians(milling_angle))
 
-        checkpoint = self.config.model_checkpoint
+            checkpoint = self.config.model_checkpoint
 
-        # do detection 
+            # do detection 
 
-        # Take Ion Image for detection, change beamtype temporarily to ION then change back
-        orig_beam_type = image_settings.beam_type
-        image_settings.beam_type = BeamType.ION
+            # Take Ion Image for detection, change beamtype temporarily to ION then change back
+            orig_beam_type = image_settings.beam_type
+            image_settings.beam_type = BeamType.ION
 
-        # self._align_reference_image(ALIGNMENT_REFERENCE_IMAGE_FILENAME)
+            # self._align_reference_image(ALIGNMENT_REFERENCE_IMAGE_FILENAME)
 
 
-        features = [LamellaCentre()]
-        det = update_detection_ui(microscope=self.microscope,
-                                    image_settings=image_settings,
-                                    checkpoint=checkpoint,
-                                    features=features,
-                                    parent_ui=self.parent_ui,
-                                    validate=self.validate,
-                                    msg=self.lamella.status_info)
+            features = [LamellaCentre()]
+            det = update_detection_ui(microscope=self.microscope,
+                                        image_settings=image_settings,
+                                        checkpoint=checkpoint,
+                                        features=features,
+                                        parent_ui=self.parent_ui,
+                                        validate=self.validate,
+                                        msg=self.lamella.status_info)
 
-        image_settings.beam_type = orig_beam_type
+            image_settings.beam_type = orig_beam_type
 
-        # align vertical
-        ## Maybe make this move pattern instead of beamshift/stage shift?
+            # align vertical
 
-        print(f'################################################################################################################')
-        print(f"Detection results: dx = {det.features[0].feature_m.x}, dy = {det.features[0].feature_m.y}")
 
-        self.microscope.vertical_move(
-            dx=det.features[0].feature_m.x,
-            dy=det.features[0].feature_m.y,
-        )
+            self.microscope.vertical_move(
+                dx=det.features[0].feature_m.x,
+                dy=det.features[0].feature_m.y,
+            )
 
-        self.lamella.milling_pose = self.microscope.get_microscope_state()
+            self.lamella.milling_pose = self.microscope.get_microscope_state()
 
         # beam_shift alignment
 
