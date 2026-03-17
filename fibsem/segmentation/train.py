@@ -187,6 +187,8 @@ def train_model(
     train_losses = []
     val_losses = []
 
+    results = {"train_losses": train_losses, "val_losses": val_losses}
+
     # helps improve memory issues? 
     # https://stackoverflow.com/questions/59129812/how-to-avoid-cuda-out-of-memory-in-pytorch
     torch.cuda.empty_cache()
@@ -208,7 +210,7 @@ def train_model(
         # save_model(save_dir, model, epoch)
         save_model_v2(config["save_path"], model, epoch, config["encoder"], config["num_classes"])
 
-    return model
+    return model, results
 
 
 def _setup_model(config: dict) -> tuple:

@@ -118,7 +118,7 @@ class AutoLamellaTaskConfig(ABC):
     milling: Dict[str, FibsemMillingTaskConfig] = field(default_factory=dict)
     reference_imaging: ReferenceImageParameters = field(default_factory=ReferenceImageParameters)
     model_checkpoint: str = field(
-        default="",
+        default="autolamella-waffle-20240107.pt",
         metadata={"parameter": True, "help": "ML model checkpoint"}
     )
 
