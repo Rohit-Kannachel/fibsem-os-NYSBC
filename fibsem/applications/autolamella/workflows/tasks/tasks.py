@@ -982,6 +982,8 @@ class MillRoughTask(AutoLamellaTask):
                 dy=det.features[0].feature_m.y,
             )
 
+            self._acquire_reference_image(self.image_settings, field_of_view=self.config.milling[MILL_ROUGH_KEY].field_of_view)
+
 
         # mill rough trench
         self.log_status_message("MILL_LAMELLA", "Milling Rough Lamella...")
@@ -1033,8 +1035,8 @@ class MillPolishingTask(AutoLamellaTask):
         
         """Run the task to mill the polishing trenches for a lamella."""
         # bookkeeping
-        image_settings = self.config.imaging
-        image_settings.path = self.lamella.path
+        self.image_settings = self.config.imaging
+        self.image_settings.path = self.lamella.path
 
         # move to lamella milling position
         self._move_to_milling_pose()
@@ -1061,7 +1063,7 @@ class MillPolishingTask(AutoLamellaTask):
             features = [LamellaCentre()]
 
             det = update_detection_ui(microscope=self.microscope, 
-                                        image_settings=image_settings, 
+                                        image_settings=self.image_settings, 
                                         checkpoint=checkpoint, 
                                         features=features, 
                                         parent_ui=self.parent_ui, 
@@ -1074,13 +1076,15 @@ class MillPolishingTask(AutoLamellaTask):
                 dy=det.features[0].feature_m.y,
             )
 
+            self._acquire_reference_image(self.image_settings, field_of_view=self.config.milling[MILL_ROUGH_KEY].field_of_view)
+
 
         msg = f"Press Run Milling to mill the polishing for {self.lamella.name}. Press Continue when done."
         milling_task_config = self.update_milling_config_ui(milling_task_config, msg=msg)
         self.config.milling[MILL_POLISHING_KEY] = deepcopy(milling_task_config)
 
         # reference images
-        self._acquire_set_of_reference_images(image_settings)
+        self._acquire_set_of_reference_images(self.image_settings)
 
 
 class SpotBurnFiducialTask(AutoLamellaTask):
@@ -1459,6 +1463,11 @@ class BasicMillingTask(AutoLamellaTask):
 
         self.log_status_message("MOVE_TO_LAMELLA", "Moving to Lamella Position...")
         self.microscope.safe_absolute_stage_movement(self.lamella.stage_position)
+
+        milling_task_config = self.config.milling["milling"]
+
+        # acquire reference images
+        self._acquire_reference_image(image_settings, field_of_view=milling_task_config.field_of_view)
 
         self.log_status_message("RUN_MILLING", "Milling...")
 
