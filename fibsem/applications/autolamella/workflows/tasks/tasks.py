@@ -87,6 +87,8 @@ TAutoLamellaTaskConfig = TypeVar(
     "TAutoLamellaTaskConfig", bound="AutoLamellaTaskConfig"
 )
 
+ALIGNMENT_REFERENCE_IMAGE_FILENAME = "ref_alignment_ib.tif"
+
 
 
 # feature flags
