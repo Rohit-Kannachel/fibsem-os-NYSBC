@@ -1045,7 +1045,7 @@ class MillPolishingTask(AutoLamellaTask):
         self._align_reference_image(ALIGNMENT_REFERENCE_IMAGE_FILENAME)
 
         # reference images
-        self._acquire_reference_image(image_settings, field_of_view=self.config.milling[MILL_POLISHING_KEY].field_of_view)
+        self._acquire_reference_image(self.image_settings, field_of_view=self.config.milling[MILL_POLISHING_KEY].field_of_view)
 
       
 
