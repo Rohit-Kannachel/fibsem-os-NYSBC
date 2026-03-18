@@ -1174,6 +1174,10 @@ TASK_REGISTRY: Dict[str, Type[AutoLamellaTask]] = {
     # Add other tasks here as needed
 }
 
+
+## Import tasks created in other spaces here and add them to task registery
+## This allows us to keep tasks modularized in different files, but still be able to access them from a central location for running tasks from the UI or command line
+
 from fibsem.applications.autolamella.workflows.tasks.liftout_tasks import (
     MillLandingSiteTask,
     MillLandingSiteTaskConfig,

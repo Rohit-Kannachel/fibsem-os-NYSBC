@@ -18,6 +18,7 @@ from fibsem.milling.patterning.patterns2 import (
     RectanglePattern,
     TrenchPattern,
     WaffleNotchPattern,
+    ArrayPattern,
 )
 
 from fibsem.milling.tasks import FibsemMillingTaskConfig
@@ -134,10 +135,32 @@ DEFAULT_MILLING_CONFIG[REMOVE_BLOCK_KEY] = FibsemMillingTaskConfig(
     field_of_view=500e-6,
     stages=[
         FibsemMillingStage(
-            name="Remove Block Milling 01",
+            name="Weld Block to Adaptor",
+            milling=FibsemMillingSettings(milling_current=7.6e-9),
+            pattern=ArrayPattern(n_columns=10, n_rows=1)
+        ),
+        FibsemMillingStage(
+            name="Remove Block Milling",
+            milling=FibsemMillingSettings(milling_current=7.6e-9),
+            pattern=RectanglePattern(point=Point(-25e-6,0 ),
+                width=15e-6,
+                height=70e-6, 
+                depth=1.25e-6)
+        )
+    ],
+)
+
+DEFAULT_MILLING_CONFIG[SLICE_BLOCK_KEY] = FibsemMillingTaskConfig(
+    name="Slice Block Milling", 
+    field_of_view=500e-6,
+    stages=[
+        FibsemMillingStage(
+            name="Slice Block Milling 01",
             milling=FibsemMillingSettings(milling_current=7.6e-9),
             pattern=RectanglePattern(width=15e-6, height=70e-6, depth=1.25e-6),
         )
     ],
 )
+
+
 

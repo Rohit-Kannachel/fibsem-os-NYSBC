@@ -49,6 +49,7 @@ from fibsem.applications.autolamella.workflows.core import (
 )
 
 
+from fibsem.detection.detection import Feature
 from fibsem.microscope import FibsemMicroscope
 from fibsem.milling.patterning.utils import get_pattern_reduced_area
 from fibsem.milling.tasks import FibsemMillingTaskConfig, run_milling_task
@@ -442,7 +443,44 @@ class AutoLamellaTask(ABC):
                                                 parent_ui=self.parent_ui,
                                                 msg="Edit Alignment Area. Press Continue when done.", 
                                                 validate=self.validate)
+        
+    def _align_feature_with_ml(self, 
+                            image_settings: ImageSettings, 
+                            feature: Feature, 
+                            checkpoint: Optional[str] = None,
+                            attempts: int = None) -> None:
+        """Align to a feature using machine learning-based detection."""
+        self.log_status_message("ALIGN_WITH_ML", f"Aligning to {feature.name} with ML...")
 
+        if checkpoint is None:
+            checkpoint = self.config.model_checkpoint
+
+        if attempts is None:
+            attempts = 1 if self.validate else 3
+        
+        logging.info(f"Attempting to align to {feature.name} using ML-based detection with checkpoint {checkpoint}...")
+
+        for _ in range(attempts):
+
+            logging.info(f"Attempt {_+1} of {attempts}")
+            det = update_detection_ui(microscope=self.microscope,
+                                            image_settings=image_settings,
+                                            checkpoint=checkpoint,
+                                            features=[feature],
+                                            parent_ui=self.parent_ui,
+                                            validate=self.validate,
+                                            msg=self.lamella.status_info)
+
+
+                # align vertical
+
+            self.microscope.vertical_move(
+                dx=det.features[0].feature_m.x,
+                dy=det.features[0].feature_m.y,
+            )
+
+            self._acquire_reference_image(image_settings, field_of_view=self.config.imaging.field_of_view)
+        
 
 
 def get_task_supervision(task_name: str, 
