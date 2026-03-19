@@ -686,6 +686,65 @@ class AutoLamellaTask(ABC):
                                                 parent_ui=self.parent_ui,
                                                 msg="Edit Alignment Area. Press Continue when done.", 
                                                 validate=self.validate)
+        
+    def _align_with_ml_locally(self,
+            image_settings: ImageSettings, 
+            milling_key: str,
+            checkpoint: str = None,
+            attempts: int = None
+        ) -> None:
+        """Align to the lamella centre using an ML model, within the current area.
+            Like CrossCorrelation alignment, runs detection and moves based on detection.
+            performs this 3 times to ensure performance of the model is good and alignment is correct.
+        """
+        if checkpoint is None:
+            checkpoint = self.config.model_checkpoint
+
+        if attempts is None:
+            attempts = 1 if self.validate else MAX_ALIGNMENT_ATTEMPTS
+        
+        self.log_status_message("ALIGN_WITH_ML", "Aligning with ML Model...")
+        features = [LamellaCentre()]
+        for i in range(attempts):
+            logging.info(f"ML-based alignment attempt {i+1} of {attempts}...")
+            det = update_detection_ui(microscope=self.microscope,
+                                            image_settings=image_settings,
+                                            checkpoint=checkpoint,
+                                            features=features,
+                                            parent_ui=self.parent_ui,
+                                            validate=self.validate,
+                                            msg=self.lamella.status_info)
+
+            self.microscope.vertical_move(
+                    dx=det.features[0].feature_m.x,
+                    dy=det.features[0].feature_m.y,
+                )
+            
+            if i == (attempts -1):
+                self._acquire_reference_image(image_settings=image_settings,field_of_view=self.config.imaging.field_of_view)
+            else:
+                self._refresh_view(image_settings=image_settings, field_of_view=self.config.imaging.field_of_view)
+    
+    def _refresh_view(self,image_settings: ImageSettings, field_of_view: float, acquire_sem: bool = True, acquire_fib: bool = True) -> None:
+        """
+        ake images and update the UI to refresh the view. This can be used after moving the stage
+        or changing the beam to ensure the user has an updated view of the sample.
+        DOES NOT SAVE IMAGES on purpose to avoid filling up storage with unnecessary images.
+
+        Args:
+        image_settings (ImageSettings): The image settings to use for acquisition.
+            field_of_view (float): The field of view to use for acquisition.
+            acquire_sem (bool): Whether to acquire SEM images.
+            acquire_fib (bool): Whether to acquire FIB images.
+        """
+        image_settings.hfw = field_of_view
+        image_settings.save = False
+
+        sem_image, fib_image = acquire.acquire_channels(self.microscope,
+        image_settings,
+        acquire_sem=acquire_sem,
+        acquire_fib=acquire_fib)
+        set_images_ui(self.parent_ui, sem_image, fib_image)
 
 
 class MillTrenchTask(AutoLamellaTask):
@@ -793,7 +852,7 @@ class MillUndercutTask(AutoLamellaTask):
         self.microscope.safe_absolute_stage_movement(undercut_position)
         # TODO: support compucentric offset
 
-
+        
 
         # align feature coincident   
         feature = LamellaCentre()
@@ -839,10 +898,12 @@ class MillUndercutTask(AutoLamellaTask):
             scan_rotation = self.microscope.get_scan_rotation(beam_type=BeamType.ION)
 
             # once tilted, realign to centre of lamella
-            lamella_edge = LamellaTopEdge() if np.isclose(scan_rotation, 0) else LamellaBottomEdge()
-            
 
-            features = [LamellaCentre(),lamella_edge]
+            self._align_with_ml_locally(image_settings=image_settings,milling_key=UNDERCUT_KEY)
+            
+            lamella_edge = LamellaTopEdge() if np.isclose(scan_rotation, 0) else LamellaBottomEdge()
+
+            features = [lamella_edge]
             det = update_detection_ui(microscope=self.microscope,
                                         image_settings=image_settings,
                                         checkpoint=checkpoint,
@@ -851,16 +912,13 @@ class MillUndercutTask(AutoLamellaTask):
                                         validate=self.validate,
                                         msg=self.lamella.status_info)
 
-            # align vertical
-            self.microscope.vertical_move(
-                dx=det.features[0].feature_m.x,
-                dy=det.features[0].feature_m.y,
-            )
+
+            self._acquire_reference_image(image_settings, field_of_view=self.config.milling[UNDERCUT_KEY].field_of_view)
 
 
             
 
-            lamella_mid_height = (det.features[1].feature_m.y - det.features[0].feature_m.y)
+            # lamella_mid_height = (det.features[1].feature_m.y - det.features[0].feature_m.y)
 
             # only want to run specific stage
             current_milling_config = deepcopy(milling_task_config)
@@ -868,13 +926,14 @@ class MillUndercutTask(AutoLamellaTask):
 
             # set pattern position
             offset = current_milling_config.stages[0].pattern.height / 2 # pattern height
-            offset += current_milling_config.stages[0].pattern.point.y # pattern y point
-            offset += lamella_mid_height # add offset to middle of lamella height
+            # offset += current_milling_config.stages[0].pattern.point.y # pattern y point
+            # offset += lamella_mid_height # add offset to middle of lamella height
 
-            point = deepcopy(det.features[0].feature_m)
+            # top/bottom edge detection y point
+            det_y = det.features[0].feature_m.y
             
-            point.y += offset if np.isclose(scan_rotation, 0) else -offset
-            current_milling_config.stages[0].pattern.point = point
+            det_y += offset if np.isclose(scan_rotation, 0) else -offset
+            current_milling_config.stages[0].pattern.point.y += det_y
 
             # mill undercut
             self.log_status_message(f"MILL_UNDERCUT_{nid}")
@@ -893,7 +952,7 @@ class MillUndercutTask(AutoLamellaTask):
         # re-align to lamella centre
         self.log_status_message("ALIGN_FINAL", "Aligning Final Position...")
         image_settings.beam_type = BeamType.ION
-        image_settings.hfw = fcfg.REFERENCE_HFW_HIGH
+        image_settings.hfw = fcfg.REFERENCE_HFW_SUPER
 
         features = [LamellaCentre()]
         det = update_detection_ui(microscope=self.microscope,
@@ -966,23 +1025,10 @@ class MillRoughTask(AutoLamellaTask):
             
             checkpoint = self.config.model_checkpoint  
 
-        # # do detection 
-            features = [LamellaCentre()]
-            det = update_detection_ui(microscope=self.microscope,
-                                        image_settings=self.image_settings,
-                                        checkpoint=checkpoint,
-                                        features=features,
-                                        parent_ui=self.parent_ui,
-                                        validate=self.validate,
-                                        msg=self.lamella.status_info)
+            attempts = 1 if self.validate else MAX_ALIGNMENT_ATTEMPTS
 
-            # align vertical
-            self.microscope.vertical_move(
-                dx=det.features[0].feature_m.x,
-                dy=det.features[0].feature_m.y,
-            )
-
-            self._acquire_reference_image(self.image_settings, field_of_view=self.config.milling[MILL_ROUGH_KEY].field_of_view)
+            self._align_with_ml_locally(image_settings=self.image_settings,milling_key=MILL_ROUGH_KEY,checkpoint=checkpoint, attempts=attempts)
+                                
 
 
         # mill rough trench
@@ -1000,6 +1046,8 @@ class MillRoughTask(AutoLamellaTask):
 
         # reference images
         self._acquire_set_of_reference_images(self.image_settings)
+
+        self.lamella.milling_pose = self.microscope.get_microscope_state()
 
     def sync_polishing_milling_task_position(self, rough_milling_point: Point) -> None:
         """Sync the polishing milling task position to the rough milling task position."""
@@ -1058,26 +1106,12 @@ class MillPolishingTask(AutoLamellaTask):
 
         if self.config.use_ml_model:
 
-            checkpoint = self.config.model_checkpoint
+            attempts = 1 if self.validate else MAX_ALIGNMENT_ATTEMPTS
 
-            features = [LamellaCentre()]
-
-            det = update_detection_ui(microscope=self.microscope, 
-                                        image_settings=self.image_settings, 
-                                        checkpoint=checkpoint, 
-                                        features=features, 
-                                        parent_ui=self.parent_ui, 
-                                        validate=self.validate, 
-                                        msg=self.lamella.status_info)
-
-
-            self.microscope.vertical_move(
-                dx=det.features[0].feature_m.x,
-                dy=det.features[0].feature_m.y,
-            )
-
-            self._acquire_reference_image(self.image_settings, field_of_view=self.config.milling[MILL_ROUGH_KEY].field_of_view)
-
+            self._align_with_ml_locally(image_settings=self.image_settings,
+                milling_key=MILL_POLISHING_KEY,
+                checkpoint=self.config.model_checkpoint,
+                attempts=attempts)
 
         msg = f"Press Run Milling to mill the polishing for {self.lamella.name}. Press Continue when done."
         milling_task_config = self.update_milling_config_ui(milling_task_config, msg=msg)
@@ -1085,6 +1119,9 @@ class MillPolishingTask(AutoLamellaTask):
 
         # reference images
         self._acquire_set_of_reference_images(self.image_settings)
+
+        self.lamella.milling_pose = self.microscope.get_microscope_state()
+        self.lamella.stage_position = self.microscope.get_stage_position()
 
 
 class SpotBurnFiducialTask(AutoLamellaTask):
@@ -1238,6 +1275,26 @@ class SetupLamellaTask(AutoLamellaTask):
                     hfw=self.config.imaging.hfw
                 )
 
+                features = [LamellaCentre()]
+
+                det = update_detection_ui(microscope=self.microscope, 
+                                            image_settings=image_settings, 
+                                            checkpoint=self.config.model_checkpoint, 
+                                            features=features, 
+                                            parent_ui=self.parent_ui, 
+                                            validate=self.validate, 
+                                            msg=self.lamella.status_info)
+
+
+                self.microscope.vertical_move(
+                    dx=det.features[0].feature_m.x,
+                    dy=det.features[0].feature_m.y,
+                )
+
+                self._acquire_reference_image(image_settings, field_of_view=self.config.imaging.hfw)
+
+                
+
         else:
                 
             # check if close to tilt angle
@@ -1307,8 +1364,10 @@ class SetupLamellaTask(AutoLamellaTask):
                 dy=det.features[0].feature_m.y,
             )
 
-            self.lamella.milling_pose = self.microscope.get_microscope_state()
+            
 
+
+        self.lamella.milling_pose = self.microscope.get_microscope_state()
 
         self.log_status_message("SETUP_PATTERNS", "Setting up Lamella Patterns...")
 
@@ -1462,7 +1521,10 @@ class BasicMillingTask(AutoLamellaTask):
         image_settings.path = self.lamella.path
 
         self.log_status_message("MOVE_TO_LAMELLA", "Moving to Lamella Position...")
-        self.microscope.safe_absolute_stage_movement(self.lamella.stage_position)
+        if self.lamella.milling_pose is not None:
+            self._move_to_milling_pose()
+        else:
+            self.microscope.safe_absolute_stage_movement(self.lamella.stage_position)
 
         milling_task_config = self.config.milling["milling"]
 
