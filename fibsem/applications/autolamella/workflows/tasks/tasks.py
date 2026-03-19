@@ -38,6 +38,9 @@ from fibsem.applications.autolamella.protocol.constants import (
     TRENCH_KEY,
     UNDERCUT_KEY,
     STRESS_RELIEF_KEY,
+    LANDING_SITE_KEY,
+    REMOVE_BLOCK_KEY,
+    SLICE_BLOCK_KEY,
 )
 from fibsem.applications.autolamella.structures import (
     AutoLamellaTaskConfig,
@@ -75,6 +78,7 @@ from fibsem.structures import (
     DEFAULT_ALIGNMENT_AREA,
 )
 from fibsem.applications.autolamella.workflows._default_milling_config import DEFAULT_MILLING_CONFIG
+from fibsem.applications.autolamella.workflows.tasks.base_task import AutoLamellaTask
 
 if TYPE_CHECKING:
     from fibsem.applications.autolamella.ui import AutoLamellaUI
@@ -83,8 +87,7 @@ TAutoLamellaTaskConfig = TypeVar(
     "TAutoLamellaTaskConfig", bound="AutoLamellaTaskConfig"
 )
 
-MAX_ALIGNMENT_ATTEMPTS = 3
-ALIGNMENT_REFERENCE_IMAGE_FILENAME = "ref_alignment_ib.tif"
+
 
 # feature flags
 
@@ -115,6 +118,11 @@ class MillTrenchTaskConfig(AutoLamellaTaskConfig):
         default="FIB",
         metadata={"help": "The orientation to perform trench milling in"},
     )
+    for_liftout: bool = field(
+        default=False,
+        metadata={"help": "Whether the trench is being milled for a liftout protocol. Enabling this flag means this will run only for the lamella marked as for liftout block."},
+    )
+
     task_type: ClassVar[str] = "MILL_TRENCH"
     display_name: ClassVar[str] = "Trench Milling"
 
@@ -139,6 +147,11 @@ class MillUndercutTaskConfig(AutoLamellaTaskConfig):
         metadata={"help": "The angles to mill the undercuts at", 
                   "units": constants.DEGREE_SYMBOL},
     )
+    for_liftout: bool = field(
+        default=False,
+        metadata={"help": "Whether the undercut task is being performed for a liftout protocol. Enabling this flag means this will run only for the lamella marked as for liftout block."},
+    )
+
     task_type: ClassVar[str] = "MILL_UNDERCUT"
     display_name: ClassVar[str] = "Undercut Milling"
 
@@ -1542,18 +1555,7 @@ class BasicMillingTask(AutoLamellaTask):
         self._acquire_set_of_reference_images(image_settings)
 
 
-def get_task_supervision(task_name: str, 
-                    parent_ui: Optional['AutoLamellaUI'] = None) -> bool:
-    """Get supervision status for a task."""
-    if parent_ui is None:
-        return False
-    if not hasattr(parent_ui, 'experiment') or not hasattr(parent_ui.experiment, 'task_protocol'):
-        logging.warning("Parent UI does not have an experiment or task protocol.")
-        return False
-    if parent_ui.experiment is None or parent_ui.experiment.task_protocol is None:
-        logging.warning("Parent UI experiment task protocol is None.")
-        return False
-    return parent_ui.experiment.task_protocol.get_supervision(task_name)
+
 
 
 class TaskNotRegisteredError(Exception):
@@ -1604,6 +1606,22 @@ TASK_REGISTRY: Dict[str, Type[AutoLamellaTask]] = {
     SelectMillingPositionTaskConfig.task_type: SelectMillingPositionTask,
     # Add other tasks here as needed
 }
+
+from fibsem.applications.autolamella.workflows.tasks.liftout_tasks import (
+    MillLandingSiteTask,
+    MillLandingSiteTaskConfig,
+    LiftoutBlockTask,
+    LiftoutBlockTaskConfig,
+    LandBlockTask,
+    LandBlockTaskConfig,
+)
+
+TASK_REGISTRY.update({
+    MillLandingSiteTaskConfig.task_type: MillLandingSiteTask,
+    LiftoutBlockTaskConfig.task_type: LiftoutBlockTask,
+    LandBlockTaskConfig.task_type: LandBlockTask,
+})
+
 
 def run_task(microscope: FibsemMicroscope, 
           task_name: str, 
@@ -1691,7 +1709,24 @@ def run_tasks(microscope: FibsemMicroscope,
             #     logging.info("User exited before starting Rough Milling.")
             #     break
 
+        ### check to see if task is marked as for liftout
+        task_is_for_liftout = False
+
+        task_config = experiment.task_protocol.task_config[task_name]
+
+
+        if hasattr(task_config, "for_liftout"):
+            if task_config.for_liftout:
+                task_is_for_liftout = True
+        
+                
+
+
         for lamella in experiment.positions:
+
+            if not (lamella.is_liftout_block == task_is_for_liftout):
+                print(f"\n\n #################### task name: {task_name} for lamella {lamella.name} ################# \n\n")
+                continue
 
 
             if required_lamella and lamella.name not in required_lamella:
