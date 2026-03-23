@@ -47,6 +47,13 @@ from fibsem.applications.autolamella.workflows.core import (
     update_detection_ui,
     update_status_ui,
 )
+from fibsem.detection.detection import (
+    Feature,
+    LamellaBottomEdge,
+    LamellaCentre,
+    LamellaTopEdge,
+    VolumeBlockCentre,
+)
 
 
 from fibsem.microscope import FibsemMicroscope
@@ -442,6 +449,72 @@ class AutoLamellaTask(ABC):
                                                 parent_ui=self.parent_ui,
                                                 msg="Edit Alignment Area. Press Continue when done.", 
                                                 validate=self.validate)
+        
+    def _align_with_ml_locally(self,
+            image_settings: ImageSettings, 
+            milling_key: str,
+            checkpoint: str = None,
+            attempts: int = None
+        ) -> None:
+        """Align to the lamella centre using an ML model, within the current area.
+            Like CrossCorrelation alignment, runs detection and moves based on detection.
+            performs this 3 times to ensure performance of the model is good and alignment is correct.
+        """
+        if checkpoint is None:
+            checkpoint = self.config.model_checkpoint
+
+        if attempts is None:
+            attempts = 1 if self.validate else MAX_ALIGNMENT_ATTEMPTS
+
+        img_hfw = image_settings.hfw
+
+        det_hfw = self.config.milling[milling_key].field_of_view
+
+        det_image_settings = deepcopy(image_settings)
+        image_settings.hfw = det_hfw
+
+        self.log_status_message("ALIGN_WITH_ML", "Aligning with ML Model...")
+        features = [LamellaCentre()]
+        for i in range(attempts):
+            logging.info(f"ML-based alignment attempt {i+1} of {attempts}...")
+            det = update_detection_ui(microscope=self.microscope,
+                                            image_settings=det_image_settings,
+                                            checkpoint=checkpoint,
+                                            features=features,
+                                            parent_ui=self.parent_ui,
+                                            validate=self.validate,
+                                            msg=self.lamella.status_info)
+
+            self.microscope.vertical_move(
+                    dx=det.features[0].feature_m.x,
+                    dy=det.features[0].feature_m.y,
+                )
+            
+            if i == (attempts -1):
+                self._acquire_reference_image(image_settings=det_image_settings,field_of_view=self.config.milling[milling_key].field_of_view)
+            else:
+                self._refresh_view(image_settings=det_image_settings, field_of_view=self.config.milling[milling_key].field_of_view)
+    
+    def _refresh_view(self,image_settings: ImageSettings, field_of_view: float, acquire_sem: bool = True, acquire_fib: bool = True) -> None:
+        """
+        ake images and update the UI to refresh the view. This can be used after moving the stage
+        or changing the beam to ensure the user has an updated view of the sample.
+        DOES NOT SAVE IMAGES on purpose to avoid filling up storage with unnecessary images.
+
+        Args:
+        image_settings (ImageSettings): The image settings to use for acquisition.
+            field_of_view (float): The field of view to use for acquisition.
+            acquire_sem (bool): Whether to acquire SEM images.
+            acquire_fib (bool): Whether to acquire FIB images.
+        """
+        image_settings.hfw = field_of_view
+        image_settings.save = False
+
+        sem_image, fib_image = acquire.acquire_channels(self.microscope,
+        image_settings,
+        acquire_sem=acquire_sem,
+        acquire_fib=acquire_fib)
+        set_images_ui(self.parent_ui, sem_image, fib_image)
 
 
 
