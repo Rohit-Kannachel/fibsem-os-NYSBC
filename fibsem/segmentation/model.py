@@ -187,6 +187,8 @@ def get_backend(checkpoint: str) -> str:
         return "huggingface"
     elif "gis_lamela" in checkpoint or "adaptive" in checkpoint:
         return "adaptive-smp"
+    elif "unetpp" in checkpoint:
+        return "unetpp"
     else:
         return "smp"
 
@@ -219,6 +221,10 @@ def load_model(
     elif backend == "adaptive-smp":
         from fibsem.segmentation.adaptive_model import AdaptiveSegmentationModel
         model = AdaptiveSegmentationModel(checkpoint=checkpoint)
+
+    elif backend == "unetpp":
+        from fibsem.segmentation.unetpp_model import SegmentationModelUNetPP
+        model = SegmentationModelUNetPP(checkpoint=checkpoint, encoder=encoder, num_classes=nc, _fix_numeric_scaling=_fix_numeric_scaling)
     else:
         model = SegmentationModel(checkpoint=checkpoint, encoder=encoder, num_classes=nc, _fix_numeric_scaling=_fix_numeric_scaling)
 

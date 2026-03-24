@@ -248,7 +248,12 @@ def _setup_model(config: dict) -> tuple:
         model.load_state_dict(torch.load(config["checkpoint"], map_location=device))
         print(f"Checkpoint file {config['checkpoint']} loaded.")
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
+    # optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
+    optimizer = torch.optim.Adam([
+        {"params": model.encoder.parameters(), "lr": 1e-5},  # pretrained, fine-tune slowly
+        {"params": model.decoder.parameters(), "lr": 1e-4},  # randomly init, learn faster
+        {"params": model.segmentation_head.parameters(), "lr": 1e-4},
+    ], lr=1e-4)
 
     return model, optimizer, device
 
